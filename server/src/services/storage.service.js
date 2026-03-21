@@ -1,28 +1,11 @@
-/**
- * storage.service.js  (drop-in replacement for the old duality.service.js)
- *
- * Uses Pinata — a free, real IPFS pinning service — instead of the
- * fictional "Duality Network".  The public IPFS gateway URL returned
- * here is permanent and decentralised, which preserves the hackathon
- * narrative perfectly.
- *
- * Sign up free at https://app.pinata.cloud
- * Create an API key with "pinFileToIPFS" permission → paste it as
- * PINATA_JWT in server/.env
- *
- * If the key is missing the function falls back to a deterministic
- * mock URL so the rest of the pipeline keeps running during demos.
- */
 
 import axios from "axios";
 import FormData from "form-data";
 
 const PINATA_ENDPOINT = "https://api.pinata.cloud/pinning/pinFileToIPFS";
-const IPFS_GATEWAY   = "https://gateway.pinata.cloud/ipfs";
+const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs";
 
 /**
- * Upload a file buffer to Pinata / IPFS.
- *
  * @param {Buffer} fileBuffer  - Raw file bytes
  * @param {string} filename    - Original file name (used as IPFS metadata)
  * @returns {Promise<string>}  - Public HTTPS gateway URL

@@ -24,7 +24,7 @@ const ClassPostVersionSchema = new mongoose.Schema(
     body: { type: String, default: "" },
     type: {
       type: String,
-      enum: ["ANNOUNCEMENT", "ASSIGNMENT"],
+      enum: ["ANNOUNCEMENT", "ASSIGNMENT", "PROJECT", "PROJECT"],
       default: "ANNOUNCEMENT",
     },
     dueDate: { type: Date, default: null },
@@ -135,6 +135,12 @@ const ClassPostSchema = new mongoose.Schema(
     attachments: {
       type: [PostAttachmentSchema],
       default: [],
+    },
+    projectConfig: {
+      requirePdfReport: { type: Boolean, default: false },
+      requireGitHubUrl: { type: Boolean, default: false },
+      enableAIAnalysis: { type: Boolean, default: false },
+      similarityThreshold: { type: Number, default: 0.85, min: 0, max: 1 },
     },
     versionNumber: {
       type: Number,

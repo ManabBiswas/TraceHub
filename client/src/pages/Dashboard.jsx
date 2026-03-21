@@ -116,7 +116,7 @@ const Dashboard = () => {
         )}
 
         {/* My Resources */}
-        <Link to="/my-resources" className={cardClass}>
+        <Link to="/resources" className={cardClass}>
           <Sparkles
             size={80}
             className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"

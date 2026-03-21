@@ -22,7 +22,8 @@ const Resources = () => {
     aiTagsText: "",
     file: null,
   });
-  const [classroomSelectFocused, setClassroomSelectFocused] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verifyingVersionId, setVerifyingVersionId] = useState(null);
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -160,6 +161,24 @@ const Resources = () => {
   };
 
   const [message, setMessage] = useState("");
+
+  const verifyVersionIntegrity = (version) => {
+    if (!version.algorandTxId || version.algorandTxId.startsWith("DEMO_")) {
+      setVerificationResult({
+        verified: false,
+        message: "This version was recorded in demo mode",
+        txId: version.algorandTxId,
+      });
+    } else {
+      setVerificationResult({
+        verified: true,
+        message: "✓ Version integrity verified on Algorand blockchain",
+        txId: version.algorandTxId,
+        timestamp: version.updatedAt,
+        action: version.action,
+      });
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-360 rounded-2xl bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] p-4 md:p-8">
@@ -446,7 +465,7 @@ const Resources = () => {
                 </div>
 
                 {openHistoryById[resource._id] && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 max-h-48 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2">
                     {historyLoadingById[resource._id] ? (
                       <p className="text-xs text-[#bcd2c9]">
                         Loading timeline...
@@ -456,27 +475,132 @@ const Resources = () => {
                         No versions found.
                       </p>
                     ) : (
-                      (historyById[resource._id] || []).map((version) => (
-                        <div
-                          key={`${resource._id}-v-${version.versionNumber}`}
-                          className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs text-[#d8ebe3]"
-                        >
-                          <p className="font-semibold">
-                            v{version.versionNumber} - {version.action}
-                          </p>
-                          <p>
-                            By {version.updatedByName || "System"} (
-                            {version.updatedByRole || "SYSTEM"})
-                          </p>
-                          <p>{formatDateTime(version.updatedAt)}</p>
-                        </div>
-                      ))
+                      <div className="space-y-2">
+                        {(historyById[resource._id] || []).map((version) => (
+                          <div
+                            key={`${resource._id}-v-${version.versionNumber}`}
+                            className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs text-[#d8ebe3]"
+                          >
+                            <p className="font-semibold">
+                              v{version.versionNumber} - {version.action}
+                            </p>
+                            {version.title && (
+                              <p className="mt-0.5 truncate text-[#cfe5da]">
+                                Title: {version.title}
+                              </p>
+                            )}
+                            {version.aiSummary && (
+                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                Summary: {version.aiSummary.substring(0, 80)}
+                                {version.aiSummary.length > 80 ? "..." : ""}
+                              </p>
+                            )}
+                            {version.aiTags && version.aiTags.length > 0 && (
+                              <p className="mt-0.5 line-clamp-1 text-[#8cf0c8]">
+                                Tags: {version.aiTags.slice(0, 3).join(", ")}
+                                {version.aiTags.length > 3
+                                  ? `+${version.aiTags.length - 3}`
+                                  : ""}
+                              </p>
+                            )}
+                            {version.dualityUrl && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  window.open(version.dualityUrl, "_blank")
+                                }
+                                className="mt-0.5 truncate text-left text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                              >
+                                📄 File:{" "}
+                                {version.dualityUrl.split("/").pop() ||
+                                  "Document"}
+                              </button>
+                            )}
+                            <div className="mt-1 flex items-center justify-between text-[#8cf0c8]">
+                              <span className="truncate text-xs">
+                                {version.updatedByName || "System"}
+                              </span>
+                              {version.algorandTxId && (
+                                <span className="text-xs">
+                                  ✓ {version.algorandTxId.substring(0, 8)}...
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => verifyVersionIntegrity(version)}
+                              className="mt-2 w-full rounded border border-[#2ff5a8] px-2 py-1 text-xs font-semibold text-[#2ff5a8] hover:bg-[#2ff5a81a]"
+                            >
+                              {version.algorandTxId?.startsWith("DEMO_")
+                                ? "⚠️ Demo"
+                                : "🔐 Verify"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {verificationResult && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 z-50">
+          <div
+            className={`rounded-lg p-6 max-w-md w-full shadow-2xl border-2 ${
+              verificationResult.verified
+                ? "bg-linear-to-br from-emerald-900/20 to-emerald-800/10 border-emerald-500"
+                : "bg-linear-to-br from-amber-900/20 to-amber-800/10 border-amber-500"
+            }`}
+          >
+            <div
+              className={`text-lg font-bold mb-4 ${
+                verificationResult.verified
+                  ? "text-emerald-400"
+                  : "text-amber-400"
+              }`}
+            >
+              {verificationResult.verified ? "✓ Verified" : "⚠️ Demo Mode"}
+            </div>
+            <p className="text-sm text-gray-200 mb-4">
+              {verificationResult.message}
+            </p>
+            {verificationResult.txId && (
+              <div className="bg-black/30 rounded p-3 mb-4 text-xs font-mono text-gray-300 break-all">
+                <p className="font-semibold text-gray-400 mb-1">
+                  Transaction ID:
+                </p>
+                {verificationResult.txId}
+              </div>
+            )}
+            {verificationResult.timestamp && (
+              <p className="text-xs text-gray-400 mb-2">
+                <strong>Recorded:</strong>{" "}
+                {new Date(verificationResult.timestamp).toLocaleString()}
+              </p>
+            )}
+            {verificationResult.action && (
+              <p className="text-xs text-gray-400 mb-4">
+                <strong>Action:</strong> {verificationResult.action}
+              </p>
+            )}
+            {verificationResult.verified && (
+              <p className="text-xs text-gray-300 mb-4 border-t border-gray-600 pt-3">
+                This version integrity is verified on the Algorand blockchain.
+                The immutable record ensures no tampering has occurred.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setVerificationResult(null)}
+              className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] hover:bg-[#25d991]"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>

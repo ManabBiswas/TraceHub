@@ -1,4 +1,4 @@
-# TraceHub 🧠
+# TraceHub : A Decentralized Academic Archive
 ### Institutional Memory Engine for Universities
 
 > A decentralized, AI-powered academic archive that solves two real problems in modern universities: fragile storage and unverifiable student work.
@@ -21,7 +21,7 @@ By the time a B.Tech student graduates, every project they built has vanished on
 
 TraceHub is a unified upload platform for academic institutions. When a professor or student uploads a document:
 
-1. The file is stored on **Duality** (decentralized storage) — no single point of failure.
+1. The file is stored on **Pinata** (decentralized storage) — no single point of failure.
 2. A 0-ALGO transaction is minted on **Algorand Testnet**, encoding the file hash, uploader name, and timestamp into the blockchain as an immutable record.
 3. The document text is routed through **Requesty** to a large language model, which auto-generates AI summaries, flashcards (for professors), or a tech-stack analysis (for students).
 4. Everything is saved to **MongoDB Atlas** and surfaced on a clean public dashboard.

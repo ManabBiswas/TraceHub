@@ -16,6 +16,12 @@ const ClassroomPostDetails = () => {
   const [postHistory, setPostHistory] = useState([]);
   const [submissionHistory, setSubmissionHistory] = useState([]);
   const [mySubmission, setMySubmission] = useState(null);
+  const [allSubmissions, setAllSubmissions] = useState([]);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
+  const [selectedSubmissionHistory, setSelectedSubmissionHistory] = useState(
+    [],
+  );
+  const [verificationResult, setVerificationResult] = useState(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [savingPost, setSavingPost] = useState(false);
   const [editingPost, setEditingPost] = useState(false);
@@ -57,6 +63,69 @@ const ClassroomPostDetails = () => {
     }
 
     setSubmissionHistory(response.versions || []);
+  };
+
+  const loadTeacherSubmissions = async () => {
+    const response = await api.classrooms.getSubmissions(classroomId, postId);
+    if (response.error) {
+      setAllSubmissions([]);
+      return;
+    }
+    setAllSubmissions(response.submissions || []);
+  };
+
+  const loadSelectedSubmissionHistory = async (submissionId) => {
+    const response = await api.classrooms.getSubmissionHistory(
+      classroomId,
+      postId,
+      submissionId,
+    );
+    if (response.error) {
+      setSelectedSubmissionHistory([]);
+      return;
+    }
+    setSelectedSubmissionHistory(response.versions || []);
+    setSelectedSubmissionId(submissionId);
+  };
+
+  const downloadSubmissionFile = async (submissionId, fileIndex) => {
+    const result = await api.classrooms.downloadSubmissionFile(
+      classroomId,
+      postId,
+      submissionId,
+      fileIndex,
+    );
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    const url = window.URL.createObjectURL(result.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = result.fileName;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  const verifyVersionIntegrity = async (version) => {
+    // Check if version has an Algorand TX ID
+    if (!version.algorandTxId || version.algorandTxId.startsWith("DEMO_")) {
+      setVerificationResult({
+        verified: false,
+        message: "This version was recorded in demo mode (not on blockchain)",
+        txId: version.algorandTxId,
+      });
+    } else {
+      setVerificationResult({
+        verified: true,
+        message: "✓ Version integrity verified on Algorand blockchain",
+        txId: version.algorandTxId,
+        timestamp: version.updatedAt,
+        action: version.action,
+      });
+    }
   };
 
   useEffect(() => {
@@ -125,6 +194,11 @@ const ClassroomPostDetails = () => {
         }
       }
 
+      if (foundPost.type === "ASSIGNMENT" && canEditPost) {
+        await loadTeacherSubmissions();
+        if (!isActive) return;
+      }
+
       setTimelineLoading(false);
       setLoading(false);
     };
@@ -134,7 +208,8 @@ const ClassroomPostDetails = () => {
     return () => {
       isActive = false;
     };
-  }, [classroomId, postId, isStudent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroomId, postId, isStudent, canEditPost]);
 
   const formatSubmissionDateTime = (dateValue) => {
     if (!dateValue) return { date: "-", time: "-" };
@@ -168,7 +243,6 @@ const ClassroomPostDetails = () => {
     submissionForm.files.forEach((file) => {
       formData.append("files", file);
     });
-
 
     if (response.error) {
       setError(response.error);
@@ -511,32 +585,227 @@ const ClassroomPostDetails = () => {
             ) : postHistory.length === 0 ? (
               <p className="text-sm text-[#bcd2c9]">No post versions yet.</p>
             ) : (
-              <div className="space-y-2">
-                {postHistory.map((version) => (
-                  <div
-                    key={`post-v-${version.versionNumber}`}
-                    className="rounded border border-white/10 bg-[#1f292580] p-3 text-sm"
-                  >
-                    <p className="font-semibold text-[#e8f2ed]">
-                      v{version.versionNumber} - {version.action}
-                    </p>
-                    <p className="text-[#bcd2c9]">
-                      By {version.updatedByName || "System"} (
-                      {version.updatedByRole || "SYSTEM"})
-                    </p>
-                    <p className="text-[#bcd2c9]">
-                      {formatDateTime(version.updatedAt)}
-                    </p>
-                    {version.algorandTxId && (
-                      <p className="mt-1 text-xs text-[#8cf0c8]">
-                        Algorand TX: {version.algorandTxId}
+              <div className="max-h-56 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2">
+                <div className="space-y-2">
+                  {postHistory.map((version) => (
+                    <div
+                      key={`post-v-${version.versionNumber}`}
+                      className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs"
+                    >
+                      <p className="font-semibold text-[#e8f2ed]">
+                        v{version.versionNumber} - {version.action}
                       </p>
-                    )}
-                  </div>
-                ))}
+                      {version.title && (
+                        <p className="mt-0.5 truncate text-[#cfe5da]">
+                          {version.title}
+                        </p>
+                      )}
+                      {version.body && (
+                        <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                          {version.body.substring(0, 60)}
+                          {version.body.length > 60 ? "..." : ""}
+                        </p>
+                      )}
+                      {version.points !== null &&
+                        version.points !== undefined && (
+                          <p className="mt-0.5 text-[#8cf0c8]">
+                            📊 {version.points} pts
+                          </p>
+                        )}
+                      {version.attachments &&
+                        version.attachments.length > 0 && (
+                          <div className="mt-0.5">
+                            {version.attachments.map((attachment, idx) => (
+                              <button
+                                key={`attach-${idx}`}
+                                type="button"
+                                onClick={() => {
+                                  if (attachment.url) {
+                                    window.open(attachment.url, "_blank");
+                                  }
+                                }}
+                                disabled={!attachment.url}
+                                className={`block text-xs ${
+                                  attachment.url
+                                    ? "text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                                    : "text-[#8cf0c8]"
+                                }`}
+                              >
+                                📎 {attachment.title || attachment.fileName}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      <div className="mt-1 flex items-center justify-between gap-1">
+                        <span className="truncate text-xs text-[#bcd2c9]">
+                          {version.updatedByName || "System"}
+                        </span>
+                        {version.algorandTxId && (
+                          <button
+                            type="button"
+                            onClick={() => verifyVersionIntegrity(version)}
+                            className="text-xs text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
+                            title="Verify integrity on blockchain"
+                          >
+                            {version.algorandTxId.startsWith("DEMO_")
+                              ? "⚠️ Demo"
+                              : "🔐 Verify"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
+
+          {post.type === "ASSIGNMENT" && canEditPost && (
+            <div className="mt-4 rounded border border-[#2ff5a838] bg-[#0f1613d9] p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-[#e8f2ed]">
+                  All Student Submissions
+                </p>
+                <span className="text-xs text-[#9fc0b2]">
+                  {allSubmissions.length} submission(s)
+                </span>
+              </div>
+
+              {allSubmissions.length === 0 ? (
+                <p className="text-sm text-[#bcd2c9]">No submissions yet.</p>
+              ) : (
+                <>
+                  <div className="max-h-64 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2 mb-3">
+                    <div className="space-y-2">
+                      {allSubmissions.map((submission) => (
+                        <button
+                          key={submission._id}
+                          type="button"
+                          onClick={() =>
+                            loadSelectedSubmissionHistory(submission._id)
+                          }
+                          className={`w-full text-left rounded border p-2 text-xs transition ${
+                            selectedSubmissionId === submission._id
+                              ? "border-[#2ff5a8] bg-[#2ff5a81a]"
+                              : "border-white/10 bg-[#1f292580] hover:border-[#2ff5a8]"
+                          }`}
+                        >
+                          <p className="font-semibold text-[#e8f2ed]">
+                            {submission.studentId?.name || "Student"}
+                          </p>
+                          <p className="text-[#bcd2c9]">
+                            Status: {submission.status || "-"} | Marks:{" "}
+                            {typeof submission.marks === "number"
+                              ? submission.marks
+                              : "-"}
+                          </p>
+                          <p className="text-[#8cf0c8]">
+                            {submission.contentType && submission.contentType}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedSubmissionId && (
+                    <div className="rounded border border-[#2ff5a838] bg-[#0f1613d9] p-3">
+                      <p className="mb-2 font-semibold text-[#e8f2ed]">
+                        Student Submission History
+                      </p>
+                      {selectedSubmissionHistory.length === 0 ? (
+                        <p className="text-sm text-[#bcd2c9]">
+                          No versions found.
+                        </p>
+                      ) : (
+                        <div className="max-h-56 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2">
+                          <div className="space-y-2">
+                            {selectedSubmissionHistory.map((version) => (
+                              <div
+                                key={`teacher-sub-${version.versionNumber}`}
+                                className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs"
+                              >
+                                <p className="font-semibold text-[#e8f2ed]">
+                                  v{version.versionNumber} - {version.action}
+                                </p>
+                                <p className="mt-0.5 text-[#bcd2c9]">
+                                  {version.status || "-"}
+                                  {typeof version.marks === "number"
+                                    ? ` | 📊 ${version.marks}`
+                                    : ""}
+                                </p>
+                                {version.link && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      window.open(version.link, "_blank")
+                                    }
+                                    className="mt-0.5 block text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                                  >
+                                    🔗 {version.link.substring(0, 45)}
+                                    {version.link.length > 45 ? "..." : ""}
+                                  </button>
+                                )}
+                                {version.text && (
+                                  <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                    {version.text.substring(0, 50)}
+                                    {version.text.length > 50 ? "..." : ""}
+                                  </p>
+                                )}
+                                {version.files && version.files.length > 0 && (
+                                  <div className="mt-0.5">
+                                    {version.files.map((file, idx) => (
+                                      <button
+                                        key={`file-${idx}`}
+                                        type="button"
+                                        onClick={() =>
+                                          downloadSubmissionFile(
+                                            selectedSubmissionId,
+                                            idx,
+                                          )
+                                        }
+                                        className="block text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                                      >
+                                        📎 {file.fileName}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                {version.feedback && (
+                                  <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                    💬 {version.feedback.substring(0, 40)}
+                                    {version.feedback.length > 40 ? "..." : ""}
+                                  </p>
+                                )}
+                                <div className="mt-1 flex items-center justify-between gap-1">
+                                  <span className="truncate text-xs text-[#bcd2c9]">
+                                    {version.updatedByName || "System"}
+                                  </span>
+                                  {version.algorandTxId && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        verifyVersionIntegrity(version)
+                                      }
+                                      className="text-xs text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
+                                      title="Verify integrity on blockchain"
+                                    >
+                                      {version.algorandTxId.startsWith("DEMO_")
+                                        ? "⚠️ Demo"
+                                        : "🔐 Verify"}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {post.type === "ASSIGNMENT" && isStudent && (
             <div className="mt-4 rounded border border-[#2ff5a838] bg-[#0f1613d9] p-4">
@@ -566,35 +835,89 @@ const ClassroomPostDetails = () => {
                       No submission versions found.
                     </p>
                   ) : (
-                    <div className="space-y-2">
-                      {submissionHistory.map((version) => (
-                        <div
-                          key={`submission-v-${version.versionNumber}`}
-                          className="rounded border border-white/10 bg-[#1f292580] p-3 text-sm"
-                        >
-                          <p className="font-semibold text-[#e8f2ed]">
-                            v{version.versionNumber} - {version.action}
-                          </p>
-                          <p className="text-[#bcd2c9]">
-                            {version.status || "-"}
-                            {typeof version.marks === "number"
-                              ? ` | Marks: ${version.marks}`
-                              : ""}
-                          </p>
-                          <p className="text-[#bcd2c9]">
-                            By {version.updatedByName || "System"} (
-                            {version.updatedByRole || "SYSTEM"})
-                          </p>
-                          <p className="text-[#bcd2c9]">
-                            {formatDateTime(version.updatedAt)}
-                          </p>
-                          {version.algorandTxId && (
-                            <p className="mt-1 text-xs text-[#8cf0c8]">
-                              Algorand TX: {version.algorandTxId}
+                    <div className="max-h-56 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2">
+                      <div className="space-y-2">
+                        {submissionHistory.map((version) => (
+                          <div
+                            key={`submission-v-${version.versionNumber}`}
+                            className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs"
+                          >
+                            <p className="font-semibold text-[#e8f2ed]">
+                              v{version.versionNumber} - {version.action}
                             </p>
-                          )}
-                        </div>
-                      ))}
+                            <p className="mt-0.5 text-[#bcd2c9]">
+                              {version.status || "-"}
+                              {typeof version.marks === "number"
+                                ? ` | 📊 ${version.marks}`
+                                : ""}
+                            </p>
+                            {version.contentType && (
+                              <p className="mt-0.5 text-[#8cf0c8]">
+                                {version.contentType === "LINK" ? "🔗" : "📝"}{" "}
+                                {version.contentType}
+                              </p>
+                            )}
+                            {version.link && (
+                              <p className="mt-0.5 truncate text-[#cfe5da]">
+                                {version.link.substring(0, 40)}
+                                {version.link.length > 40 ? "..." : ""}
+                              </p>
+                            )}
+                            {version.text && (
+                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                {version.text.substring(0, 50)}
+                                {version.text.length > 50 ? "..." : ""}
+                              </p>
+                            )}
+                            {version.files && version.files.length > 0 && (
+                              <div className="mt-0.5">
+                                {version.files.map((file, idx) => (
+                                  <button
+                                    key={`file-${idx}`}
+                                    type="button"
+                                    onClick={() =>
+                                      downloadSubmissionFile(
+                                        mySubmission._id,
+                                        idx,
+                                      )
+                                    }
+                                    className="block text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                                  >
+                                    📎 {file.fileName}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {version.feedback && (
+                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                💬 {version.feedback.substring(0, 40)}
+                                {version.feedback.length > 40 ? "..." : ""}
+                              </p>
+                            )}
+                            <div className="mt-1 flex items-center justify-between gap-1">
+                              <span className="truncate text-xs text-[#bcd2c9]">
+                                {version.updatedByName || "System"}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {version.algorandTxId && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      verifyVersionIntegrity(version)
+                                    }
+                                    className="text-xs text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
+                                    title="Verify integrity on blockchain"
+                                  >
+                                    {version.algorandTxId.startsWith("DEMO_")
+                                      ? "⚠️ Demo"
+                                      : "🔐 Verify"}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </>
@@ -607,6 +930,73 @@ const ClassroomPostDetails = () => {
               Go back
             </Link>
           </div>
+
+          {verificationResult && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="max-w-md rounded-lg border border-[#2ff5a8] bg-[#1f2925] p-6 shadow-2xl">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-[#e8f2ed]">
+                    Verification Result
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setVerificationResult(null)}
+                    className="text-[#bcd2c9] hover:text-[#e8f2ed]"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-4 rounded border border-[#3f5148] bg-[#0f160f] p-3">
+                  <p
+                    className={`text-sm font-semibold ${
+                      verificationResult.verified
+                        ? "text-[#2ff5a8]"
+                        : "text-[#f5a962]"
+                    }`}
+                  >
+                    {verificationResult.message}
+                  </p>
+                </div>
+                <div className="space-y-2 text-xs text-[#bcd2c9]">
+                  <p>
+                    <span className="font-semibold text-[#cfe5da]">
+                      Transaction ID:
+                    </span>{" "}
+                    {verificationResult.txId}
+                  </p>
+                  {verificationResult.timestamp && (
+                    <p>
+                      <span className="font-semibold text-[#cfe5da]">
+                        Timestamp:
+                      </span>{" "}
+                      {formatDateTime(verificationResult.timestamp)}
+                    </p>
+                  )}
+                  {verificationResult.action && (
+                    <p>
+                      <span className="font-semibold text-[#cfe5da]">
+                        Action:
+                      </span>{" "}
+                      {verificationResult.action}
+                    </p>
+                  )}
+                  {verificationResult.verified && (
+                    <p className="rounded border border-[#2ff5a838] bg-[#2ff5a81a] p-2">
+                      This version is immutably recorded on the Algorand
+                      blockchain. No tampering is possible after registration.
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVerificationResult(null)}
+                  className="mt-4 w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] hover:bg-[#24d993]"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
     </div>

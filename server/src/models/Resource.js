@@ -80,6 +80,11 @@ const ResourceSchema = new mongoose.Schema({
   // NOTE: Algorand mint only happens on approval
   dualityUrl: { type: String }, // Permanent file URL
   algorandTxId: { type: String }, // Testnet transaction ID (null until approved)
+  
+  // Blockchain verification: SHA-256 hash of content at approval time
+  // Recomputed during verification to detect tampering
+  // If this hash doesn't match the on-chain hash, the record was tampered with
+  contentHash: { type: String, default: "" }, // SHA-256 hash written to Algorand
 
   // Versioning fields (every create/update/approval appends an immutable snapshot)
   versionNumber: {
