@@ -52,6 +52,15 @@ const ClassPostSchema = new mongoose.Schema(
       default: null,
       min: 0,
     },
+    allowStudentSubmissions: {
+      type: Boolean,
+      default: true,
+    },
+    allowedSubmissionTypes: {
+      type: [String],
+      enum: ["LINK", "FILE"],
+      default: ["LINK", "FILE"],
+    },
     attachments: {
       type: [PostAttachmentSchema],
       default: [],

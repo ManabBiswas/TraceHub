@@ -3,7 +3,10 @@ TraceHub Classroom API (Google Classroom style)
 Auth
 
 - POST /api/auth/register
+- POST /api/auth/register-teacher
 - POST /api/auth/login
+- GET /api/auth/me
+- POST /api/auth/renew-subscription
 
 Classrooms
 
@@ -20,4 +23,7 @@ Classroom Posts
 Submissions
 
 - POST /api/classrooms/:classroomId/posts/:postId/submissions/link (Link submission - STUDENT)
+- POST /api/classrooms/:classroomId/posts/:postId/submissions (File/link/text submission - STUDENT)
+- GET /api/classrooms/:classroomId/posts/:postId/submissions (Teacher view for grading)
+- GET /api/classrooms/:classroomId/posts/:postId/submissions/:submissionId/files/:fileIndex (Teacher downloads submitted file)
 - PATCH /api/classrooms/:classroomId/posts/:postId/submissions/:submissionId (Update submission - PROFESSOR/HOD)

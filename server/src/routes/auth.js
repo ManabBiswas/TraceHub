@@ -1,9 +1,11 @@
 import express from "express";
-import { authMiddleware, adminGuard } from "../middlewares/auth.middleware.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 import {
   register,
   login,
-  // getCurrentUser,
+  registerTeacher,
+  getCurrentUser,
+  renewTeacherSubscription,
   // forgotPassword,
   // updateProfilePicture,
   // promoteUser,
@@ -13,8 +15,10 @@ import {
 const router = express.Router();
 
 router.post("/register", register);
+router.post("/register-teacher", registerTeacher);
 router.post("/login", login);
-// router.get("/me", authMiddleware, getCurrentUser);
+router.get("/me", authMiddleware, getCurrentUser);
+router.post("/renew-subscription", authMiddleware, renewTeacherSubscription);
 // router.post("/forgot-password", forgotPassword);
 // router.patch("/profile-picture", authMiddleware, updateProfilePicture);
 // router.post("/promote", authMiddleware, adminGuard, promoteUser);

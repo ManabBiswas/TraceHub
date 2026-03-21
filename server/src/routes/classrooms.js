@@ -1,5 +1,6 @@
 import express from "express";
 import { authMiddleware, roleGuard } from "../middlewares/auth.middleware.js";
+import submissionUpload from "../middlewares/submissionUpload.middleware.js";
 import {
   createClassroom,
   fetchClassrooms,
@@ -8,6 +9,9 @@ import {
   fetchClassroomPosts,
   updatePost,
   submitLink,
+  submitAssignment,
+  fetchPostSubmissions,
+  downloadSubmissionFile,
   updateSubmission,
 } from "../controllers/classrooms.controller.js";
 
@@ -41,6 +45,25 @@ router.post(
   authMiddleware,
   roleGuard("STUDENT"),
   submitLink,
+);
+router.post(
+  "/:classroomId/posts/:postId/submissions",
+  authMiddleware,
+  roleGuard("STUDENT"),
+  submissionUpload.array("files", 5),
+  submitAssignment,
+);
+router.get(
+  "/:classroomId/posts/:postId/submissions",
+  authMiddleware,
+  roleGuard("PROFESSOR", "HOD"),
+  fetchPostSubmissions,
+);
+router.get(
+  "/:classroomId/posts/:postId/submissions/:submissionId/files/:fileIndex",
+  authMiddleware,
+  roleGuard("PROFESSOR", "HOD"),
+  downloadSubmissionFile,
 );
 router.patch(
   "/:classroomId/posts/:postId/submissions/:submissionId",

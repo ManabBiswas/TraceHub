@@ -1,5 +1,30 @@
 import mongoose from "mongoose";
 
+const SubmissionFileSchema = new mongoose.Schema(
+  {
+    fileName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    mimeType: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    size: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    data: {
+      type: Buffer,
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
 const SubmissionSchema = new mongoose.Schema(
   {
     classroomId: {
@@ -19,7 +44,7 @@ const SubmissionSchema = new mongoose.Schema(
     },
     contentType: {
       type: String,
-      enum: ["LINK", "TEXT"],
+      enum: ["LINK", "FILE", "BOTH", "TEXT"],
       default: "LINK",
     },
     link: {
@@ -32,9 +57,13 @@ const SubmissionSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    files: {
+      type: [SubmissionFileSchema],
+      default: [],
+    },
     status: {
       type: String,
-      enum: ["TURNED_IN", "RETURNED"],
+      enum: ["DRAFT", "TURNED_IN", "RETURNED"],
       default: "TURNED_IN",
     },
     marks: {

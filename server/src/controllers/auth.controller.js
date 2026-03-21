@@ -1,6 +1,16 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
+const createAuthResponse = (user) => ({
+  _id: user._id,
+  email: user.email,
+  name: user.name,
+  role: user.role,
+  department: user.department,
+  profilePicture: user.profilePicture,
+  teacherSubscription: user.teacherSubscription,
+});
+
 export const register = async (req, res) => {
   try {
     const { email, password, name } = req.body;
@@ -41,17 +51,72 @@ export const register = async (req, res) => {
     res.status(201).json({
       message: "User registered successfully",
       token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        profilePicture: user.profilePicture,
-      },
+      user: createAuthResponse(user),
     });
   } catch (error) {
     console.error("Register error:", error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const registerTeacher = async (req, res) => {
+  try {
+    const { email, password, name, department, monthlyFee } = req.body;
+
+    if (!email || !password || !name || !department) {
+      return res.status(400).json({
+        error: "Missing required fields: email, password, name, department",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        error: "Password must be at least 8 characters",
+      });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        error: "Email already registered",
+      });
+    }
+
+    const fee = Number(monthlyFee ?? process.env.TEACHER_MONTHLY_FEE ?? 99);
+    const now = new Date();
+    const nextBillingDate = new Date(now);
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+    const teacher = await User.create({
+      email,
+      password,
+      name,
+      department,
+      role: "PROFESSOR",
+      isVerified: true,
+      teacherSubscription: {
+        status: "ACTIVE",
+        amount: fee,
+        currency: "INR",
+        interval: "monthly",
+        startedAt: now,
+        nextBillingDate,
+        lastPaymentAt: now,
+      },
+    });
+
+    const token = jwt.sign({ userId: teacher._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    return res.status(201).json({
+      message: "Teacher registered with active monthly subscription",
+      token,
+      user: createAuthResponse(teacher),
+    });
+  } catch (error) {
+    console.error("Register teacher error:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -102,18 +167,61 @@ export const login = async (req, res) => {
     res.status(200).json({
       message: "Login successful",
       token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        department: user.department,
-        profilePicture: user.profilePicture,
-      },
+      user: createAuthResponse(user),
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    return res.json({ user: createAuthResponse(req.user) });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const renewTeacherSubscription = async (req, res) => {
+  try {
+    if (req.user.role !== "PROFESSOR") {
+      return res
+        .status(403)
+        .json({ error: "Only teachers can renew subscription" });
+    }
+
+    const now = new Date();
+    const baseDate =
+      req.user.teacherSubscription?.nextBillingDate &&
+      req.user.teacherSubscription.nextBillingDate > now
+        ? new Date(req.user.teacherSubscription.nextBillingDate)
+        : now;
+
+    baseDate.setMonth(baseDate.getMonth() + 1);
+
+    req.user.teacherSubscription = {
+      ...req.user.teacherSubscription,
+      status: "ACTIVE",
+      amount:
+        req.user.teacherSubscription?.amount ||
+        Number(process.env.TEACHER_MONTHLY_FEE ?? 99),
+      currency: req.user.teacherSubscription?.currency || "INR",
+      interval: "monthly",
+      startedAt: req.user.teacherSubscription?.startedAt || now,
+      nextBillingDate: baseDate,
+      lastPaymentAt: now,
+    };
+
+    await req.user.save();
+
+    return res.json({
+      message: "Subscription renewed successfully",
+      teacherSubscription: req.user.teacherSubscription,
+    });
+  } catch (error) {
+    console.error("Renew subscription error:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
