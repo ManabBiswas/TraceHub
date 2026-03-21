@@ -11,8 +11,14 @@ const ResourceSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: false,  // Students submit GitHub URLs without JWT
-    default: null
+    required: false, // Students submit GitHub URLs without JWT
+    default: null,
+  },
+  classroomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Classroom",
+    required: false,
+    default: null,
   },
   userDepartment: { type: String },
 
@@ -20,9 +26,9 @@ const ResourceSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ["pending", "approved"],
-    default: function() {
+    default: function () {
       return this.role === "Professor" ? "approved" : "pending"; // Professors auto-approve, students are pending
-    }
+    },
   },
   approvedBy: { type: String }, // Professor name who approved
   approvedAt: { type: Date }, // When it was approved
@@ -42,11 +48,12 @@ const ResourceSchema = new mongoose.Schema({
   dualityUrl: { type: String }, // Permanent file URL
   algorandTxId: { type: String }, // Testnet transaction ID (null until approved)
 
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
 });
 
 // Indexes
 ResourceSchema.index({ userId: 1, createdAt: -1 });
+ResourceSchema.index({ classroomId: 1, createdAt: -1 });
 ResourceSchema.index({ status: 1, createdAt: -1 }); // For pending queue
 
 export default mongoose.model("Resource", ResourceSchema);
