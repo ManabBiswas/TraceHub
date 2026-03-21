@@ -1,30 +1,36 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
-import Navigation from './components/Navigation'
-import Footer from './components/Footer'
-import BackToTop from './components/BackToTop'
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Navigation from "./components/Navigation";
+import Footer from "./components/Footer";
+import BackToTop from "./components/BackToTop";
 
 // Pages
-import Landing from './pages/Landing'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
-import Resources from './pages/Resources'
-import MyResources from './pages/MyResources'
-import Upload from './pages/Upload'
-import Pending from './pages/Pending'
-import Profile from './pages/Profile'
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
+import Resources from "./pages/Resources";
+import MyResources from "./pages/MyResources";
+import Upload from "./pages/Upload";
+import Pending from "./pages/Pending";
+import Profile from "./pages/Profile";
+import Classrooms from "./pages/Classrooms";
 
 function AppContent() {
-  const { loading } = useAuth()
+  const { loading } = useAuth();
 
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#1f2925] text-slate-300">
         Loading...
       </div>
-    )
+    );
   }
 
   return (
@@ -46,6 +52,7 @@ function AppContent() {
             <Route path="/upload" element={<Upload />} />
             <Route path="/pending" element={<Pending />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/classrooms" element={<Classrooms />} />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" />} />
@@ -55,7 +62,7 @@ function AppContent() {
       <Footer />
       <BackToTop />
     </>
-  )
+  );
 }
 
 function App() {
@@ -65,7 +72,7 @@ function App() {
         <AppContent />
       </AuthProvider>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;
