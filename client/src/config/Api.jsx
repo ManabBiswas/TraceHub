@@ -348,6 +348,33 @@ export const api = {
           : "submission-file",
       };
     },
+
+    downloadPostAttachment: async (classroomId, postId, attachmentIndex) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/attachments/${attachmentIndex}`,
+        {
+          method: "GET",
+          headers: {
+            ...getAuthHeader(),
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        return { error: errorBody.error || "Failed to download attachment" };
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const fileNameMatch = disposition.match(/filename="?([^"]+)"?/);
+      return {
+        blob,
+        fileName: fileNameMatch
+          ? decodeURIComponent(fileNameMatch[1])
+          : "post-attachment",
+      };
+    },
   },
 };
 

@@ -255,7 +255,11 @@ export const createPost = async (req, res) => {
 
     const uploadedAttachments = uploadedFiles.map((file) => ({
       title: file.originalname,
-      url: `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      data: file.buffer,
+      url: "",
     }));
 
     const mergedAttachments = [...parsedAttachments, ...uploadedAttachments];
@@ -282,6 +286,7 @@ export const createPost = async (req, res) => {
 export const fetchClassroomPosts = async (req, res) => {
   try {
     const { classroomId } = req.params;
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
 
     if (!isValidObjectId(classroomId)) {
       return res.status(400).json({ error: "Invalid classroomId" });
@@ -302,7 +307,83 @@ export const fetchClassroomPosts = async (req, res) => {
       .populate("authorId", "name email role")
       .sort({ createdAt: -1 });
 
-    return res.json({ posts });
+    const sanitizedPosts = posts.map((post) => {
+      const plain = post.toObject();
+      plain.attachments = (plain.attachments || []).map((attachment, index) => {
+        const hasBinaryData = Boolean(attachment?.data);
+        if (!hasBinaryData) {
+          return {
+            title: attachment?.title || "",
+            url: attachment?.url || "",
+          };
+        }
+
+        return {
+          title:
+            attachment?.title ||
+            attachment?.fileName ||
+            `Attachment ${index + 1}`,
+          url: `${baseUrl}/api/classrooms/${classroomId}/posts/${plain._id}/attachments/${index}`,
+        };
+      });
+      return plain;
+    });
+
+    return res.json({ posts: sanitizedPosts });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const downloadPostAttachment = async (req, res) => {
+  try {
+    const { classroomId, postId, attachmentIndex } = req.params;
+
+    if (!isValidObjectId(classroomId) || !isValidObjectId(postId)) {
+      return res.status(400).json({ error: "Invalid classroomId or postId" });
+    }
+
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    if (!canAccessClassroom(classroom, req.user._id)) {
+      return res
+        .status(403)
+        .json({ error: "You are not a member of this classroom" });
+    }
+
+    const post = await ClassPost.findOne({ _id: postId, classroomId });
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    const index = Number(attachmentIndex);
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= post.attachments.length
+    ) {
+      return res.status(400).json({ error: "Invalid attachment index" });
+    }
+
+    const attachment = post.attachments[index];
+
+    if (!attachment?.data) {
+      return res.status(404).json({ error: "Attachment data not found" });
+    }
+
+    const fileName =
+      attachment.fileName || attachment.title || `attachment-${index + 1}`;
+    const mimeType = attachment.mimeType || "application/octet-stream";
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${encodeURIComponent(fileName)}"`,
+    );
+    return res.send(attachment.data);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

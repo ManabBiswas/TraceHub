@@ -412,6 +412,25 @@ const Classrooms = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleOpenPostAttachment = async (postId, attachmentIndex) => {
+    if (!selectedClassroomId || !postId) return;
+
+    const result = await api.classrooms.downloadPostAttachment(
+      selectedClassroomId,
+      postId,
+      attachmentIndex,
+    );
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    const url = URL.createObjectURL(result.blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  };
+
   return (
     <div className="mx-auto w-full max-w-360 rounded-2xl bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] p-4 md:p-8 text-[#e8f2ed]">
       <h1 className="mb-6 text-3xl font-bold">Classrooms</h1>
@@ -716,15 +735,16 @@ const Classrooms = () => {
                   post.attachments.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {post.attachments.map((attachment, index) => (
-                        <a
+                        <button
                           key={`${post._id}-attachment-${index}`}
-                          href={attachment.url}
-                          target="_blank"
-                          rel="noreferrer"
+                          type="button"
+                          onClick={() =>
+                            handleOpenPostAttachment(post._id, index)
+                          }
                           className="rounded border border-white/20 px-2 py-1 text-xs underline"
                         >
                           {attachment.title || `Attachment ${index + 1}`}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}

@@ -7,6 +7,25 @@ const PostAttachmentSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    fileName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    mimeType: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    size: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    data: {
+      type: Buffer,
+      default: null,
+    },
     url: {
       type: String,
       trim: true,
