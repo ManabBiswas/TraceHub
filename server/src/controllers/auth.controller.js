@@ -1,0 +1,299 @@
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+export const register = async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({
+        error: "Missing required fields: email, password, name",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        error: "Password must be at least 8 characters",
+      });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        error: "Email already registered",
+      });
+    }
+
+    const user = new User({
+      email,
+      password,
+      name,
+      role: "STUDENT",
+      isVerified: true,
+    });
+
+    await user.save();
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(201).json({
+      message: "User registered successfully",
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        profilePicture: user.profilePicture,
+      },
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        error: "Missing email or password",
+      });
+    }
+
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+      return res.status(401).json({
+        error: "Invalid email or password",
+      });
+    }
+
+    if (user.isAccountLocked()) {
+      return res.status(403).json({
+        error: "Account is locked. Please try again later.",
+      });
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+      if (user.loginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+      }
+      await user.save();
+      return res.status(401).json({
+        error: "Invalid email or password",
+      });
+    }
+
+    user.loginAttempts = 0;
+    user.lockUntil = null;
+    user.lastLogin = new Date();
+    await user.save();
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        department: user.department,
+        profilePicture: user.profilePicture,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// export const getCurrentUser = async (req, res) => {
+//   try {
+//     res.json({
+//       user: {
+//         _id: req.user._id,
+//         email: req.user.email,
+//         name: req.user.name,
+//         role: req.user.role,
+//         department: req.user.department,
+//         profilePicture: req.user.profilePicture,
+//         managedDepartments: req.user.managedDepartments,
+//         lastLogin: req.user.lastLogin,
+//         createdAt: req.user.createdAt,
+//       },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// export const forgotPassword = async (req, res) => {
+//   try {
+//     const { email, newPassword } = req.body;
+
+//     if (!email || !newPassword) {
+//       return res.status(400).json({
+//         error: "Email and newPassword are required",
+//       });
+//     }
+
+//     if (newPassword.length < 8) {
+//       return res.status(400).json({
+//         error: "Password must be at least 8 characters",
+//       });
+//     }
+
+//     const user = await User.findOne({ email }).select("+password");
+//     if (!user) {
+//       return res.status(404).json({
+//         error: "No account found with this email",
+//       });
+//     }
+
+//     user.password = newPassword;
+//     user.loginAttempts = 0;
+//     user.lockUntil = null;
+//     await user.save();
+
+//     res.json({
+//       message: "Password reset successful. You can now login.",
+//     });
+//   } catch (error) {
+//     console.error("Forgot password error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// export const updateProfilePicture = async (req, res) => {
+//   try {
+//     const { profilePicture } = req.body;
+
+//     if (typeof profilePicture !== "string" || profilePicture.length === 0) {
+//       return res.status(400).json({
+//         error: "profilePicture is required",
+//       });
+//     }
+
+//     if (!profilePicture.startsWith("data:image/")) {
+//       return res.status(400).json({
+//         error: "Invalid image format",
+//       });
+//     }
+
+//     if (profilePicture.length > 2_000_000) {
+//       return res.status(400).json({
+//         error: "Image too large. Please use a smaller image.",
+//       });
+//     }
+
+//     req.user.profilePicture = profilePicture;
+//     await req.user.save();
+
+//     res.json({
+//       message: "Profile picture updated",
+//       user: {
+//         _id: req.user._id,
+//         email: req.user.email,
+//         name: req.user.name,
+//         role: req.user.role,
+//         department: req.user.department,
+//         profilePicture: req.user.profilePicture,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Profile picture update error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// export const promoteUser = async (req, res) => {
+//   try {
+//     const { userId, newRole, department } = req.body;
+
+//     if (!userId || !newRole || !["PROFESSOR", "HOD"].includes(newRole)) {
+//       return res.status(400).json({
+//         error: "Invalid userId or newRole. newRole must be PROFESSOR or HOD",
+//       });
+//     }
+
+//     if (!department) {
+//       return res.status(400).json({
+//         error: "Department is required for Professor/HOD role",
+//       });
+//     }
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     user.role = newRole;
+//     user.department = department;
+//     if (newRole === "HOD") {
+//       user.managedDepartments = [department];
+//     }
+//     await user.save();
+
+//     res.json({
+//       message: `User promoted to ${newRole}`,
+//       user: {
+//         _id: user._id,
+//         email: user.email,
+//         name: user.name,
+//         role: user.role,
+//         department: user.department,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Promote error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// export const revokeUserPrivileges = async (req, res) => {
+//   try {
+//     const { userId } = req.body;
+
+//     if (!userId) {
+//       return res.status(400).json({ error: "userId is required" });
+//     }
+
+//     const user = await User.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     if (user.role !== "PROFESSOR") {
+//       return res.status(400).json({
+//         error: "Can only revoke upload privileges from Professors",
+//       });
+//     }
+
+//     user.role = "STUDENT";
+//     user.department = null;
+//     await user.save();
+
+//     res.json({
+//       message: "User upload privileges revoked",
+//       user: {
+//         _id: user._id,
+//         email: user.email,
+//         name: user.name,
+//         role: user.role,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Revoke error:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
