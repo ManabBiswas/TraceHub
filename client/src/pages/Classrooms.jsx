@@ -37,12 +37,6 @@ const Classrooms = () => {
     files: [],
   });
 
-  const [submissionForm, setSubmissionForm] = useState({
-    link: "",
-    text: "",
-    files: [],
-  });
-
   const [gradeForm, setGradeForm] = useState({
     submissionId: "",
     marks: "",
@@ -327,32 +321,6 @@ const Classrooms = () => {
       files: [],
     });
     await loadPosts(selectedClassroomId);
-  };
-
-  const handleSubmitAssignment = async (e, postId) => {
-    e.preventDefault();
-    if (!selectedClassroomId || !postId) return;
-
-    setError("");
-    setMessage("");
-
-    const response = await api.classrooms.submitAssignment(
-      selectedClassroomId,
-      postId,
-      {
-        link: submissionForm.link,
-        text: submissionForm.text,
-        files: submissionForm.files,
-      },
-    );
-
-    if (response.error) {
-      setError(response.error);
-      return;
-    }
-
-    setMessage(response.message || "Assignment submitted");
-    setSubmissionForm({ link: "", text: "", files: [] });
   };
 
   const handleGradeSubmission = async (e) => {
@@ -777,53 +745,6 @@ const Classrooms = () => {
                       ))}
                     </div>
                   )}
-
-                {!isTeacher && post.type === "ASSIGNMENT" && (
-                  <form
-                    onSubmit={(e) => handleSubmitAssignment(e, post._id)}
-                    className="mt-3 rounded border border-white/10 bg-[#0f1613d9] p-3"
-                  >
-                    <input
-                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                      placeholder="Submission link (optional)"
-                      value={submissionForm.link}
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          link: e.target.value,
-                        }))
-                      }
-                    />
-                    <textarea
-                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                      placeholder="Notes/text (optional)"
-                      value={submissionForm.text}
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          text: e.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      className="mb-2 block w-full text-sm"
-                      type="file"
-                      multiple
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          files: Array.from(e.target.files || []),
-                        }))
-                      }
-                    />
-                    <button
-                      type="submit"
-                      className="rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019]"
-                    >
-                      Submit Assignment
-                    </button>
-                  </form>
-                )}
               </div>
             ))}
 

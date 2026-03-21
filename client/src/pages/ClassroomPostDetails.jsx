@@ -162,6 +162,13 @@ const ClassroomPostDetails = () => {
         files: submissionForm.files,
       },
     );
+    const formData = new FormData();
+    formData.append("link", submissionForm.link);
+    formData.append("text", submissionForm.text);
+    submissionForm.files.forEach((file) => {
+      formData.append("files", file);
+    });
+
 
     if (response.error) {
       setError(response.error);
