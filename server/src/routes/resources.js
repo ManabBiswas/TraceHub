@@ -3,7 +3,7 @@ import Resource from "../models/Resource.js";
 import Classroom from "../models/Classroom.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import upload from "../middlewares/upload.middleware.js";
-import { uploadToDuality } from "../services/duality.service.js";
+import { uploadToDuality } from "../services/storage.service.js";
 import { mintVersionProof } from "../services/algorand.service.js";
 
 const router = express.Router();

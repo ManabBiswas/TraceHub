@@ -4,7 +4,7 @@ import { authMiddleware, uploadGuard } from "../middlewares/auth.middleware.js";
 import { extractText } from "../utils/pdfParser.js";
 import { fetchGitHubReadme } from "../utils/githubFetcher.js";
 import { analyzeDocument } from "../services/requesty.service.js";
-import { uploadToDuality } from "../services/duality.service.js";
+import { uploadToDuality } from "../services/storage.service.js";
 import { mintProofOfPublication } from "../services/algorand.service.js";
 import Resource from "../models/Resource.js";
 import Classroom from "../models/Classroom.js";

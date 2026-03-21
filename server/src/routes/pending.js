@@ -1,5 +1,5 @@
 import express from "express";
-import { uploadToDuality } from "../services/duality.service.js";
+import { uploadToDuality } from "../services/storage.service.js";
 import { mintVersionProof } from "../services/algorand.service.js";
 import Resource from "../models/Resource.js";
 
