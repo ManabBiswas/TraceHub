@@ -21,7 +21,6 @@ const ClassroomPostDetails = () => {
   const [selectedSubmissionHistory, setSelectedSubmissionHistory] = useState(
     [],
   );
-  const [verifyingVersionId, setVerifyingVersionId] = useState(null);
   const [verificationResult, setVerificationResult] = useState(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [savingPost, setSavingPost] = useState(false);
@@ -111,7 +110,6 @@ const ClassroomPostDetails = () => {
   };
 
   const verifyVersionIntegrity = async (version) => {
-    setVerifyingVersionId(version._id);
     // Check if version has an Algorand TX ID
     if (!version.algorandTxId || version.algorandTxId.startsWith("DEMO_")) {
       setVerificationResult({
@@ -210,6 +208,7 @@ const ClassroomPostDetails = () => {
     return () => {
       isActive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroomId, postId, isStudent, canEditPost]);
 
   const formatSubmissionDateTime = (dateValue) => {
@@ -637,14 +636,21 @@ const ClassroomPostDetails = () => {
                             ))}
                           </div>
                         )}
-                      <div className="mt-1 flex items-center justify-between">
+                      <div className="mt-1 flex items-center justify-between gap-1">
                         <span className="truncate text-xs text-[#bcd2c9]">
                           {version.updatedByName || "System"}
                         </span>
                         {version.algorandTxId && (
-                          <span className="text-xs text-[#8cf0c8]">
-                            ✓ {version.algorandTxId.substring(0, 8)}...
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => verifyVersionIntegrity(version)}
+                            className="text-xs text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
+                            title="Verify integrity on blockchain"
+                          >
+                            {version.algorandTxId.startsWith("DEMO_")
+                              ? "⚠️ Demo"
+                              : "🔐 Verify"}
+                          </button>
                         )}
                       </div>
                     </div>
