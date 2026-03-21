@@ -169,7 +169,6 @@ const ClassroomPostDetails = () => {
       formData.append("files", file);
     });
 
-
     if (response.error) {
       setError(response.error);
       return;
@@ -511,29 +510,70 @@ const ClassroomPostDetails = () => {
             ) : postHistory.length === 0 ? (
               <p className="text-sm text-[#bcd2c9]">No post versions yet.</p>
             ) : (
-              <div className="space-y-2">
-                {postHistory.map((version) => (
-                  <div
-                    key={`post-v-${version.versionNumber}`}
-                    className="rounded border border-white/10 bg-[#1f292580] p-3 text-sm"
-                  >
-                    <p className="font-semibold text-[#e8f2ed]">
-                      v{version.versionNumber} - {version.action}
-                    </p>
-                    <p className="text-[#bcd2c9]">
-                      By {version.updatedByName || "System"} (
-                      {version.updatedByRole || "SYSTEM"})
-                    </p>
-                    <p className="text-[#bcd2c9]">
-                      {formatDateTime(version.updatedAt)}
-                    </p>
-                    {version.algorandTxId && (
-                      <p className="mt-1 text-xs text-[#8cf0c8]">
-                        Algorand TX: {version.algorandTxId}
+              <div className="max-h-56 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2">
+                <div className="space-y-2">
+                  {postHistory.map((version) => (
+                    <div
+                      key={`post-v-${version.versionNumber}`}
+                      className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs"
+                    >
+                      <p className="font-semibold text-[#e8f2ed]">
+                        v{version.versionNumber} - {version.action}
                       </p>
-                    )}
-                  </div>
-                ))}
+                      {version.title && (
+                        <p className="mt-0.5 truncate text-[#cfe5da]">
+                          {version.title}
+                        </p>
+                      )}
+                      {version.body && (
+                        <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                          {version.body.substring(0, 60)}
+                          {version.body.length > 60 ? "..." : ""}
+                        </p>
+                      )}
+                      {version.points !== null &&
+                        version.points !== undefined && (
+                          <p className="mt-0.5 text-[#8cf0c8]">
+                            📊 {version.points} pts
+                          </p>
+                        )}
+                      {version.attachments &&
+                        version.attachments.length > 0 && (
+                          <div className="mt-0.5">
+                            {version.attachments.map((attachment, idx) => (
+                              <button
+                                key={`attach-${idx}`}
+                                type="button"
+                                onClick={() => {
+                                  if (attachment.url) {
+                                    window.open(attachment.url, "_blank");
+                                  }
+                                }}
+                                disabled={!attachment.url}
+                                className={`block text-xs ${
+                                  attachment.url
+                                    ? "text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                                    : "text-[#8cf0c8]"
+                                }`}
+                              >
+                                📎 {attachment.title || attachment.fileName}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="truncate text-xs text-[#bcd2c9]">
+                          {version.updatedByName || "System"}
+                        </span>
+                        {version.algorandTxId && (
+                          <span className="text-xs text-[#8cf0c8]">
+                            ✓ {version.algorandTxId.substring(0, 8)}...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -566,35 +606,71 @@ const ClassroomPostDetails = () => {
                       No submission versions found.
                     </p>
                   ) : (
-                    <div className="space-y-2">
-                      {submissionHistory.map((version) => (
-                        <div
-                          key={`submission-v-${version.versionNumber}`}
-                          className="rounded border border-white/10 bg-[#1f292580] p-3 text-sm"
-                        >
-                          <p className="font-semibold text-[#e8f2ed]">
-                            v{version.versionNumber} - {version.action}
-                          </p>
-                          <p className="text-[#bcd2c9]">
-                            {version.status || "-"}
-                            {typeof version.marks === "number"
-                              ? ` | Marks: ${version.marks}`
-                              : ""}
-                          </p>
-                          <p className="text-[#bcd2c9]">
-                            By {version.updatedByName || "System"} (
-                            {version.updatedByRole || "SYSTEM"})
-                          </p>
-                          <p className="text-[#bcd2c9]">
-                            {formatDateTime(version.updatedAt)}
-                          </p>
-                          {version.algorandTxId && (
-                            <p className="mt-1 text-xs text-[#8cf0c8]">
-                              Algorand TX: {version.algorandTxId}
+                    <div className="max-h-56 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2">
+                      <div className="space-y-2">
+                        {submissionHistory.map((version) => (
+                          <div
+                            key={`submission-v-${version.versionNumber}`}
+                            className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs"
+                          >
+                            <p className="font-semibold text-[#e8f2ed]">
+                              v{version.versionNumber} - {version.action}
                             </p>
-                          )}
-                        </div>
-                      ))}
+                            <p className="mt-0.5 text-[#bcd2c9]">
+                              {version.status || "-"}
+                              {typeof version.marks === "number"
+                                ? ` | 📊 ${version.marks}`
+                                : ""}
+                            </p>
+                            {version.contentType && (
+                              <p className="mt-0.5 text-[#8cf0c8]">
+                                {version.contentType === "LINK" ? "🔗" : "📝"}{" "}
+                                {version.contentType}
+                              </p>
+                            )}
+                            {version.link && (
+                              <p className="mt-0.5 truncate text-[#cfe5da]">
+                                {version.link.substring(0, 40)}
+                                {version.link.length > 40 ? "..." : ""}
+                              </p>
+                            )}
+                            {version.text && (
+                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                {version.text.substring(0, 50)}
+                                {version.text.length > 50 ? "..." : ""}
+                              </p>
+                            )}
+                            {version.files && version.files.length > 0 && (
+                              <div className="mt-0.5">
+                                {version.files.map((file, idx) => (
+                                  <p
+                                    key={`file-${idx}`}
+                                    className="text-xs text-[#a8e6c1]"
+                                  >
+                                    📎 {file.fileName}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            {version.feedback && (
+                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                💬 {version.feedback.substring(0, 40)}
+                                {version.feedback.length > 40 ? "..." : ""}
+                              </p>
+                            )}
+                            <div className="mt-1 flex items-center justify-between">
+                              <span className="truncate text-xs text-[#bcd2c9]">
+                                {version.updatedByName || "System"}
+                              </span>
+                              {version.algorandTxId && (
+                                <span className="text-xs text-[#8cf0c8]">
+                                  ✓ {version.algorandTxId.substring(0, 8)}...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </>

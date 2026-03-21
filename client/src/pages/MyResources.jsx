@@ -327,7 +327,7 @@ const MyResources = () => {
                 </div>
 
                 {openHistoryById[resource._id] && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 max-h-48 overflow-y-auto rounded border border-[#3f5148] bg-[#0f160f] p-2">
                     {historyLoadingById[resource._id] ? (
                       <p className="text-xs text-[#bcd2c9]">
                         Loading timeline...
@@ -337,21 +337,60 @@ const MyResources = () => {
                         No versions found.
                       </p>
                     ) : (
-                      (historyById[resource._id] || []).map((version) => (
-                        <div
-                          key={`${resource._id}-v-${version.versionNumber}`}
-                          className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs text-[#d8ebe3]"
-                        >
-                          <p className="font-semibold">
-                            v{version.versionNumber} - {version.action}
-                          </p>
-                          <p>
-                            By {version.updatedByName || "System"} (
-                            {version.updatedByRole || "SYSTEM"})
-                          </p>
-                          <p>{formatDateTime(version.updatedAt)}</p>
-                        </div>
-                      ))
+                      <div className="space-y-2">
+                        {(historyById[resource._id] || []).map((version) => (
+                          <div
+                            key={`${resource._id}-v-${version.versionNumber}`}
+                            className="rounded border border-white/10 bg-[#1f292580] p-2 text-xs text-[#d8ebe3]"
+                          >
+                            <p className="font-semibold">
+                              v{version.versionNumber} - {version.action}
+                            </p>
+                            {version.title && (
+                              <p className="mt-0.5 truncate text-[#cfe5da]">
+                                Title: {version.title}
+                              </p>
+                            )}
+                            {version.aiSummary && (
+                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                Summary: {version.aiSummary.substring(0, 80)}
+                                {version.aiSummary.length > 80 ? "..." : ""}
+                              </p>
+                            )}
+                            {version.aiTags && version.aiTags.length > 0 && (
+                              <p className="mt-0.5 line-clamp-1 text-[#8cf0c8]">
+                                Tags: {version.aiTags.slice(0, 3).join(", ")}
+                                {version.aiTags.length > 3
+                                  ? `+${version.aiTags.length - 3}`
+                                  : ""}
+                              </p>
+                            )}
+                            {version.dualityUrl && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  window.open(version.dualityUrl, "_blank")
+                                }
+                                className="mt-0.5 truncate text-left text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                              >
+                                📄 File:{" "}
+                                {version.dualityUrl.split("/").pop() ||
+                                  "Document"}
+                              </button>
+                            )}
+                            <div className="mt-1 flex items-center justify-between text-[#8cf0c8]">
+                              <span className="truncate text-xs">
+                                {version.updatedByName || "System"}
+                              </span>
+                              {version.algorandTxId && (
+                                <span className="text-xs">
+                                  ✓ {version.algorandTxId.substring(0, 8)}...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}
