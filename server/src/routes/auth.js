@@ -3,11 +3,11 @@ import { authMiddleware, adminGuard } from "../middlewares/auth.middleware.js";
 import {
   register,
   login,
-  getCurrentUser,
-  forgotPassword,
-  updateProfilePicture,
-  promoteUser,
-  revokeUserPrivileges,
+  // getCurrentUser,
+  // forgotPassword,
+  // updateProfilePicture,
+  // promoteUser,
+  // revokeUserPrivileges,
 } from "../controllers/auth.controller.js";
 
 const router = express.Router();
