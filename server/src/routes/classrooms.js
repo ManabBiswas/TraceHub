@@ -31,6 +31,7 @@ router.post(
   "/:classroomId/posts",
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
+  submissionUpload.array("attachments", 5),
   createPost,
 );
 router.patch(

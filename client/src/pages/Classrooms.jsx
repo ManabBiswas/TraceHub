@@ -32,6 +32,7 @@ const Classrooms = () => {
     allowStudentSubmissions: true,
     allowLink: true,
     allowFile: true,
+    files: [],
   });
 
   const [submissionForm, setSubmissionForm] = useState({
@@ -46,11 +47,6 @@ const Classrooms = () => {
     feedback: "",
     status: "RETURNED",
   });
-
-  const selectedClassroom = useMemo(
-    () => classrooms.find((room) => room._id === selectedClassroomId),
-    [classrooms, selectedClassroomId],
-  );
 
   const selectedPost = useMemo(
     () => posts.find((post) => post._id === selectedPostId),
@@ -125,17 +121,98 @@ const Classrooms = () => {
   };
 
   useEffect(() => {
-    loadClassrooms();
+    let isActive = true;
+
+    const run = async () => {
+      const response = await api.classrooms.getAll();
+      if (!isActive) return;
+
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      const nextClassrooms = response.classrooms || [];
+      setClassrooms(nextClassrooms);
+      if (nextClassrooms.length > 0) {
+        setSelectedClassroomId((prev) => prev || nextClassrooms[0]._id);
+      }
+    };
+
+    void run();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   useEffect(() => {
-    setSelectedPostId("");
-    loadPosts(selectedClassroomId);
+    let isActive = true;
+
+    const run = async () => {
+      if (!selectedClassroomId) {
+        if (!isActive) return;
+        setPosts([]);
+        setSelectedPostId("");
+        return;
+      }
+
+      const response = await api.classrooms.getPosts(selectedClassroomId);
+      if (!isActive) return;
+
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      const nextPosts = response.posts || [];
+      setPosts(nextPosts);
+      setSelectedPostId((prev) => {
+        if (!nextPosts.some((post) => post._id === prev)) {
+          return nextPosts[0]?._id || "";
+        }
+        return prev;
+      });
+    };
+
+    void run();
+
+    return () => {
+      isActive = false;
+    };
   }, [selectedClassroomId]);
 
   useEffect(() => {
-    loadSubmissions(selectedClassroomId, selectedPostId);
-  }, [selectedClassroomId, selectedPostId]);
+    let isActive = true;
+
+    const run = async () => {
+      if (!selectedClassroomId || !selectedPostId || !isTeacher) {
+        if (!isActive) return;
+        setSubmissions([]);
+        return;
+      }
+
+      const response = await api.classrooms.getSubmissions(
+        selectedClassroomId,
+        selectedPostId,
+      );
+
+      if (!isActive) return;
+
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      setSubmissions(response.submissions || []);
+    };
+
+    void run();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedClassroomId, selectedPostId, isTeacher]);
 
   const handleCreateClassroom = async (e) => {
     e.preventDefault();
@@ -188,6 +265,27 @@ const Classrooms = () => {
     if (createPostForm.allowLink) allowedSubmissionTypes.push("LINK");
     if (createPostForm.allowFile) allowedSubmissionTypes.push("FILE");
 
+    if (createPostForm.files.length > 5) {
+      setError("You can attach up to 5 files per post");
+      return;
+    }
+
+    const oversizedFile = createPostForm.files.find(
+      (file) => file.size > 5 * 1024 * 1024,
+    );
+    if (oversizedFile) {
+      setError(`File too large: ${oversizedFile.name}. Max size is 5MB each.`);
+      return;
+    }
+
+    const nonPdfFile = createPostForm.files.find(
+      (file) => file.type !== "application/pdf",
+    );
+    if (nonPdfFile) {
+      setError(`Unsupported file type: ${nonPdfFile.name}. Only PDF files are allowed.`);
+      return;
+    }
+
     const payload = {
       title: createPostForm.title,
       body: createPostForm.body,
@@ -199,6 +297,7 @@ const Classrooms = () => {
           ? createPostForm.allowStudentSubmissions
           : false,
       allowedSubmissionTypes,
+      files: createPostForm.files,
     };
 
     const response = await api.classrooms.createPost(
@@ -221,6 +320,7 @@ const Classrooms = () => {
       allowStudentSubmissions: true,
       allowLink: true,
       allowFile: true,
+      files: [],
     });
     await loadPosts(selectedClassroomId);
   };
@@ -518,6 +618,29 @@ const Classrooms = () => {
                 </button>
               </div>
 
+              <div className="mt-2">
+                <label className="mb-1 block text-sm">
+                  Attach files to post (optional, max 5)
+                </label>
+                <input
+                  className="block w-full text-sm"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  multiple
+                  onChange={(e) =>
+                    setCreatePostForm((prev) => ({
+                      ...prev,
+                      files: Array.from(e.target.files || []),
+                    }))
+                  }
+                />
+                {createPostForm.files.length > 0 && (
+                  <p className="mt-1 text-xs text-[#bcd2c9]">
+                    {createPostForm.files.length} PDF file(s) selected (max 5 files, 5MB each)
+                  </p>
+                )}
+              </div>
+
               {createPostForm.type === "ASSIGNMENT" && (
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
                   <label className="inline-flex items-center gap-2">
@@ -585,6 +708,23 @@ const Classrooms = () => {
                   )}
                 </div>
                 <p className="text-sm text-[#d8ebe3]">{post.body}</p>
+
+                {Array.isArray(post.attachments) &&
+                  post.attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {post.attachments.map((attachment, index) => (
+                        <a
+                          key={`${post._id}-attachment-${index}`}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded border border-white/20 px-2 py-1 text-xs underline"
+                        >
+                          {attachment.title || `Attachment ${index + 1}`}
+                        </a>
+                      ))}
+                    </div>
+                  )}
 
                 {!isTeacher && post.type === "ASSIGNMENT" && (
                   <form

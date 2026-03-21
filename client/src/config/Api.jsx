@@ -208,6 +208,47 @@ export const api = {
     },
 
     createPost: async (classroomId, payload) => {
+      const hasFiles =
+        Array.isArray(payload.files) && payload.files.length > 0;
+
+      if (hasFiles) {
+        const formData = new FormData();
+        formData.append("title", payload.title || "");
+        formData.append("body", payload.body || "");
+        formData.append("type", payload.type || "ANNOUNCEMENT");
+
+        if (payload.dueDate) formData.append("dueDate", payload.dueDate);
+        if (payload.points !== null && typeof payload.points !== "undefined") {
+          formData.append("points", String(payload.points));
+        }
+
+        formData.append(
+          "allowStudentSubmissions",
+          String(Boolean(payload.allowStudentSubmissions)),
+        );
+        formData.append(
+          "allowedSubmissionTypes",
+          JSON.stringify(payload.allowedSubmissionTypes || ["LINK", "FILE"]),
+        );
+
+        payload.files.forEach((file) => {
+          formData.append("attachments", file);
+        });
+
+        const response = await fetch(
+          `${API_BASE_URL}/classrooms/${classroomId}/posts`,
+          {
+            method: "POST",
+            headers: {
+              ...getAuthHeader(),
+            },
+            body: formData,
+          },
+        );
+
+        return response.json();
+      }
+
       const response = await fetch(
         `${API_BASE_URL}/classrooms/${classroomId}/posts`,
         {
@@ -300,7 +341,7 @@ export const api = {
 
       const blob = await response.blob();
       const disposition = response.headers.get("Content-Disposition") || "";
-      const fileNameMatch = disposition.match(/filename="?([^\"]+)"?/);
+      const fileNameMatch = disposition.match(/filename="?([^/"]+)"?/);
       return {
         blob,
         fileName: fileNameMatch

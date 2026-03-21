@@ -58,6 +58,41 @@ const parseAllowedSubmissionTypes = (value) => {
   return normalized.length > 0 ? [...new Set(normalized)] : ["LINK", "FILE"];
 };
 
+const parseBoolean = (value, fallback = false) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
+};
+
+const parseNullableNumber = (value) => {
+  if (value === null || typeof value === "undefined" || value === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseAttachmentsInput = (attachments) => {
+  if (!attachments) return [];
+  if (Array.isArray(attachments)) return attachments;
+
+  if (typeof attachments === "string") {
+    try {
+      const parsed = JSON.parse(attachments);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  return [];
+};
+
 export const createClassroom = async (req, res) => {
   try {
     const { name, section, subject, room, description } = req.body;
@@ -170,6 +205,7 @@ export const createPost = async (req, res) => {
       allowStudentSubmissions,
       allowedSubmissionTypes,
     } = req.body;
+    const uploadedFiles = Array.isArray(req.files) ? req.files : [];
 
     if (!isValidObjectId(classroomId)) {
       return res.status(400).json({ error: "Invalid classroomId" });
@@ -199,13 +235,30 @@ export const createPost = async (req, res) => {
 
     const postType = type || "ANNOUNCEMENT";
     const resolvedAllowStudentSubmissions =
-      typeof allowStudentSubmissions === "boolean"
-        ? allowStudentSubmissions
+      typeof allowStudentSubmissions !== "undefined"
+        ? parseBoolean(allowStudentSubmissions)
         : postType === "ASSIGNMENT";
 
     const resolvedSubmissionTypes = parseAllowedSubmissionTypes(
-      allowedSubmissionTypes,
+      typeof allowedSubmissionTypes === "string"
+        ? parseAttachmentsInput(allowedSubmissionTypes)
+        : allowedSubmissionTypes,
     );
+
+    const parsedAttachments = parseAttachmentsInput(attachments).filter(
+      (entry) =>
+        entry &&
+        typeof entry.title === "string" &&
+        typeof entry.url === "string" &&
+        entry.url.length > 0,
+    );
+
+    const uploadedAttachments = uploadedFiles.map((file) => ({
+      title: file.originalname,
+      url: `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+    }));
+
+    const mergedAttachments = [...parsedAttachments, ...uploadedAttachments];
 
     const post = await ClassPost.create({
       classroomId,
@@ -214,10 +267,10 @@ export const createPost = async (req, res) => {
       body: body || "",
       type: postType,
       dueDate: dueDate || null,
-      points: typeof points === "number" ? points : null,
+      points: parseNullableNumber(points),
       allowStudentSubmissions: resolvedAllowStudentSubmissions,
       allowedSubmissionTypes: resolvedSubmissionTypes,
-      attachments: Array.isArray(attachments) ? attachments : [],
+      attachments: mergedAttachments,
     });
 
     return res.status(201).json({ message: "Post created", post });
@@ -353,11 +406,9 @@ export const submitLink = async (req, res) => {
     }
 
     if (!post.allowStudentSubmissions) {
-      return res
-        .status(403)
-        .json({
-          error: "Submissions are disabled by the teacher for this post",
-        });
+      return res.status(403).json({
+        error: "Submissions are disabled by the teacher for this post",
+      });
     }
 
     if (!post.allowedSubmissionTypes.includes("LINK")) {
@@ -427,11 +478,9 @@ export const submitAssignment = async (req, res) => {
     }
 
     if (!post.allowStudentSubmissions) {
-      return res
-        .status(403)
-        .json({
-          error: "Submissions are disabled by the teacher for this post",
-        });
+      return res.status(403).json({
+        error: "Submissions are disabled by the teacher for this post",
+      });
     }
 
     const hasLink = typeof link === "string" && link.trim().length > 0;
