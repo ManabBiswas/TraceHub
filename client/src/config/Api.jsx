@@ -59,6 +59,24 @@ export const api = {
       return response.json();
     },
 
+    loginStudent: async (email, password) => {
+      const response = await fetch(`${API_BASE_URL}/auth/login/student`, {
+        method: "POST",
+        headers: getHeaders(false),
+        body: JSON.stringify({ email, password }),
+      });
+      return response.json();
+    },
+
+    loginTeacher: async (email, password) => {
+      const response = await fetch(`${API_BASE_URL}/auth/login/teacher`, {
+        method: "POST",
+        headers: getHeaders(false),
+        body: JSON.stringify({ email, password }),
+      });
+      return response.json();
+    },
+
     getMe: async () => {
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         method: "GET",

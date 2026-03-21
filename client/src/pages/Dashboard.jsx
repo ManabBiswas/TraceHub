@@ -18,7 +18,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/login/student");
   };
 
   const cardClass =

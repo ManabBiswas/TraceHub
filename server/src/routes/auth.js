@@ -3,6 +3,8 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 import {
   register,
   login,
+  loginStudent,
+  loginTeacher,
   registerTeacher,
   getCurrentUser,
   renewTeacherSubscription,
@@ -17,6 +19,8 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/register-teacher", registerTeacher);
 router.post("/login", login);
+router.post("/login/student", loginStudent);
+router.post("/login/teacher", loginTeacher);
 router.get("/me", authMiddleware, getCurrentUser);
 router.post("/renew-subscription", authMiddleware, renewTeacherSubscription);
 // router.post("/forgot-password", forgotPassword);

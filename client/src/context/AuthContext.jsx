@@ -73,6 +73,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginForRole = async (email, password, roleType) => {
+    setError(null);
+    try {
+      const response =
+        roleType === "teacher"
+          ? await api.auth.loginTeacher(email, password)
+          : await api.auth.loginStudent(email, password);
+
+      if (response.error) {
+        setError(response.error);
+        return { success: false, message: response.error };
+      }
+
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      setToken(response.token);
+      setUser(response.user);
+
+      return { success: true };
+    } catch (err) {
+      const message = err.message || "Login failed";
+      setError(message);
+      return { success: false, message };
+    }
+  };
+
+  const loginStudent = async (email, password) => {
+    return loginForRole(email, password, "student");
+  };
+
+  const loginTeacher = async (email, password) => {
+    return loginForRole(email, password, "teacher");
+  };
+
   const registerTeacher = async (
     email,
     password,
@@ -146,6 +180,8 @@ export const AuthProvider = ({ children }) => {
     register,
     registerTeacher,
     login,
+    loginStudent,
+    loginTeacher,
     renewSubscription,
     logout,
     isAuthenticated: !!user,

@@ -11,7 +11,7 @@ const Navigation = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/login/student");
     setMenuOpen(false);
   };
 
@@ -52,16 +52,28 @@ const Navigation = () => {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Link
-              to="/login"
+              to="/login/student"
               className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/20"
             >
-              Login
+              Student Login
             </Link>
             <Link
-              to="/register"
+              to="/login/teacher"
+              className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/20"
+            >
+              Teacher Login
+            </Link>
+            <Link
+              to="/register/student"
               className="inline-flex items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition hover:bg-[#24d993]"
             >
-              Register
+              Student Register
+            </Link>
+            <Link
+              to="/register/teacher"
+              className="inline-flex items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition hover:bg-[#24d993]"
+            >
+              Teacher Register
             </Link>
           </div>
         </div>

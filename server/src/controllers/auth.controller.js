@@ -120,58 +120,87 @@ export const registerTeacher = async (req, res) => {
   }
 };
 
+const performLogin = async (req, res, expectedRole = null) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      error: "Missing email or password",
+    });
+  }
+
+  const user = await User.findOne({ email }).select("+password");
+  if (!user) {
+    return res.status(401).json({
+      error: "Invalid email or password",
+    });
+  }
+
+  if (expectedRole && user.role !== expectedRole) {
+    const roleLabel = expectedRole === "PROFESSOR" ? "teacher" : "student";
+    return res.status(403).json({
+      error: `This account is ${user.role}. Please use ${roleLabel} login.`,
+    });
+  }
+
+  if (user.isAccountLocked()) {
+    return res.status(403).json({
+      error: "Account is locked. Please try again later.",
+    });
+  }
+
+  const isPasswordValid = await user.comparePassword(password);
+  if (!isPasswordValid) {
+    user.loginAttempts = (user.loginAttempts || 0) + 1;
+    if (user.loginAttempts >= 5) {
+      user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+    }
+    await user.save();
+    return res.status(401).json({
+      error: "Invalid email or password",
+    });
+  }
+
+  user.loginAttempts = 0;
+  user.lockUntil = null;
+  user.lastLogin = new Date();
+  await user.save();
+
+  const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+  return res.status(200).json({
+    message: "Login successful",
+    token,
+    user: createAuthResponse(user),
+  });
+};
+
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        error: "Missing email or password",
-      });
-    }
-
-    const user = await User.findOne({ email }).select("+password");
-    if (!user) {
-      return res.status(401).json({
-        error: "Invalid email or password",
-      });
-    }
-
-    if (user.isAccountLocked()) {
-      return res.status(403).json({
-        error: "Account is locked. Please try again later.",
-      });
-    }
-
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      user.loginAttempts = (user.loginAttempts || 0) + 1;
-      if (user.loginAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
-      }
-      await user.save();
-      return res.status(401).json({
-        error: "Invalid email or password",
-      });
-    }
-
-    user.loginAttempts = 0;
-    user.lockUntil = null;
-    user.lastLogin = new Date();
-    await user.save();
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      user: createAuthResponse(user),
-    });
+    return await performLogin(req, res);
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const loginStudent = async (req, res) => {
+  try {
+    return await performLogin(req, res, "STUDENT");
+  } catch (error) {
+    console.error("Student login error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const loginTeacher = async (req, res) => {
+  try {
+    return await performLogin(req, res, "PROFESSOR");
+  } catch (error) {
+    console.error("Teacher login error:", error);
+    return res.status(500).json({ error: error.message });
   }
 };
 
