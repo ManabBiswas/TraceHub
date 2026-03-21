@@ -101,19 +101,23 @@ export const api = {
 
   // ========== RESOURCES ENDPOINTS ==========
   resources: {
-    getAll: async (userId = null) => {
-      const url = userId
-        ? `${API_BASE_URL}/resources?userId=${userId}`
+    getAll: async ({ userId = null, classroomId = null } = {}) => {
+      const query = new URLSearchParams();
+      if (userId) query.set("userId", userId);
+      if (classroomId) query.set("classroomId", classroomId);
+      const queryString = query.toString();
+      const url = queryString
+        ? `${API_BASE_URL}/resources?${queryString}`
         : `${API_BASE_URL}/resources`;
       const response = await fetch(url, {
-        headers: getHeaders(false),
+        headers: getHeaders(true),
       });
       return response.json();
     },
 
     getById: async (id) => {
       const response = await fetch(`${API_BASE_URL}/resources/${id}`, {
-        headers: getHeaders(false),
+        headers: getHeaders(true),
       });
       return response.json();
     },
@@ -121,10 +125,11 @@ export const api = {
 
   // ========== UPLOAD ENDPOINTS ==========
   upload: {
-    uploadFile: async (file, title) => {
+    uploadFile: async (file, title, classroomId) => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("title", title);
+      formData.append("classroomId", classroomId);
 
       try {
         const response = await fetch(`${API_BASE_URL}/upload`, {
