@@ -18,22 +18,24 @@ import algosdk from "algosdk";
 // ── Config helpers ─────────────────────────────────────────────────────────────
 
 const isDemoFallback = () =>
-  String(process.env.ALGORAND_DEMO_FALLBACK ?? "false").toLowerCase() === "true";
+  String(process.env.ALGORAND_DEMO_FALLBACK ?? "false").toLowerCase() ===
+  "true";
 
 const makeFallbackTxId = (label = "") =>
   `DEMO_${label.toUpperCase().replace(/\s+/g, "_")}_${Date.now().toString(36).toUpperCase()}`;
 
 const getAlgodClient = () => {
-  const token  = process.env.ALGOD_TOKEN  ?? "";
-  const server = process.env.ALGOD_SERVER ?? "https://testnet-api.algonode.cloud";
-  const port   = Number(process.env.ALGOD_PORT ?? 443);
+  const token = process.env.ALGOD_TOKEN ?? "";
+  const server =
+    process.env.ALGOD_SERVER ?? "https://testnet-api.algonode.cloud";
+  const port = Number(process.env.ALGOD_PORT ?? 443);
   return new algosdk.Algodv2(token, server, port);
 };
 
 // ── Retry helper ───────────────────────────────────────────────────────────────
 
-const MAX_RETRIES    = 3;
-const BASE_DELAY_MS  = 1200;
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1200;
 
 async function withRetry(label, fn) {
   let lastError;
@@ -44,7 +46,9 @@ async function withRetry(label, fn) {
       lastError = err;
       if (attempt < MAX_RETRIES) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
-        console.warn(`⚠️  Algorand [${label}] attempt ${attempt}/${MAX_RETRIES} failed — retrying in ${delay}ms`);
+        console.warn(
+          `⚠️  Algorand [${label}] attempt ${attempt}/${MAX_RETRIES} failed — retrying in ${delay}ms`,
+        );
         console.warn(`    Reason: ${err.message}`);
         await new Promise((r) => setTimeout(r, delay));
       }
@@ -66,7 +70,9 @@ async function checkAlgorandNode() {
     console.log("✅  Algorand node reachable");
   } catch {
     _nodeReachable = false;
-    console.warn("⚠️  Algorand node unreachable — minting will use demo fallback if enabled");
+    console.warn(
+      "⚠️  Algorand node unreachable — minting will use demo fallback if enabled",
+    );
   }
   return _nodeReachable;
 }
@@ -79,10 +85,87 @@ function getAccountFromMnemonic() {
   return algosdk.mnemonicToSecretKey(mnemonic.trim());
 }
 
+const hasKmdConfig = () =>
+  Boolean(
+    process.env.KMD_SERVER &&
+    process.env.KMD_PORT &&
+    process.env.KMD_TOKEN &&
+    process.env.KMD_WALLET_NAME,
+  );
+
+async function getAccountFromKmd() {
+  if (!hasKmdConfig()) {
+    throw new Error(
+      "KMD config missing. Set KMD_SERVER, KMD_PORT, KMD_TOKEN, and KMD_WALLET_NAME",
+    );
+  }
+
+  const kmd = new algosdk.Kmd(
+    process.env.KMD_TOKEN,
+    process.env.KMD_SERVER,
+    Number(process.env.KMD_PORT),
+  );
+
+  const walletPassword = process.env.KMD_WALLET_PASSWORD ?? "";
+  const walletsRes = await kmd.listWallets();
+  const wallets = walletsRes?.wallets ?? [];
+  const wallet = wallets.find((w) => w.name === process.env.KMD_WALLET_NAME);
+
+  if (!wallet?.id) {
+    throw new Error(`KMD wallet not found: ${process.env.KMD_WALLET_NAME}`);
+  }
+
+  const handleRes = await kmd.initWalletHandle(wallet.id, walletPassword);
+  const handle = handleRes?.wallet_handle_token;
+  if (!handle) {
+    throw new Error("Unable to initialize KMD wallet handle");
+  }
+
+  try {
+    const keysRes = await kmd.listKeys(handle);
+    const addresses = keysRes?.addresses ?? [];
+    const requestedAddress = process.env.KMD_ACCOUNT_ADDRESS;
+    const selectedAddress = requestedAddress || addresses[0];
+
+    if (!selectedAddress) {
+      throw new Error("No account found in KMD wallet");
+    }
+
+    if (requestedAddress && !addresses.includes(requestedAddress)) {
+      throw new Error(
+        `KMD_ACCOUNT_ADDRESS not found in wallet '${process.env.KMD_WALLET_NAME}': ${requestedAddress}`,
+      );
+    }
+
+    const keyRes = await kmd.exportKey(handle, walletPassword, selectedAddress);
+    const privateKey = keyRes?.private_key;
+
+    if (!privateKey) {
+      throw new Error("KMD returned empty private key");
+    }
+
+    return {
+      addr: selectedAddress,
+      sk: privateKey,
+    };
+  } finally {
+    try {
+      await kmd.releaseWalletHandle(handle);
+    } catch {
+      // Ignore cleanup failures.
+    }
+  }
+}
+
 async function resolveSigningAccount() {
-  const mode = String(process.env.ALGORAND_SIGNER_MODE ?? "mnemonic").toLowerCase();
+  const mode = String(
+    process.env.ALGORAND_SIGNER_MODE ?? "mnemonic",
+  ).toLowerCase();
+  if (mode === "kmd") return getAccountFromKmd();
   if (mode === "mnemonic") return getAccountFromMnemonic();
-  throw new Error(`Unsupported ALGORAND_SIGNER_MODE: ${mode}. Use 'mnemonic'.`);
+  throw new Error(
+    `Unsupported ALGORAND_SIGNER_MODE: ${mode}. Use 'mnemonic' or 'kmd'.`,
+  );
 }
 
 // ── Note builder ───────────────────────────────────────────────────────────────
@@ -92,19 +175,27 @@ async function resolveSigningAccount() {
  * Judges can see this in the testnet explorer by clicking the transaction
  * and decoding the note field (base64 → UTF-8).
  */
-function buildNote({ entityType, entityId, versionNumber, action, actor, referenceUrl, payload }) {
+function buildNote({
+  entityType,
+  entityId,
+  versionNumber,
+  action,
+  actor,
+  referenceUrl,
+  payload,
+}) {
   const note = {
-    app          : "TraceHub",
-    version      : "2.0",
-    event        : "VERSION_SNAPSHOT",
+    app: "TraceHub",
+    version: "2.0",
+    event: "VERSION_SNAPSHOT",
     entityType,
     entityId,
     versionNumber,
     action,
     actor,
-    referenceUrl : referenceUrl ?? "",
-    payload      : payload      ?? {},
-    timestamp    : new Date().toISOString(),
+    referenceUrl: referenceUrl ?? "",
+    payload: payload ?? {},
+    timestamp: new Date().toISOString(),
   };
   return new TextEncoder().encode(JSON.stringify(note));
 }
@@ -117,46 +208,66 @@ function buildNote({ entityType, entityId, versionNumber, action, actor, referen
  *
  * Internally retries up to MAX_RETRIES times before throwing.
  */
-async function _mintOnChain({ entityType, entityId, versionNumber, action, actor, referenceUrl, payload }) {
+async function _mintOnChain({
+  entityType,
+  entityId,
+  versionNumber,
+  action,
+  actor,
+  referenceUrl,
+  payload,
+}) {
   return withRetry("mint", async () => {
-    const algod   = getAlgodClient();
+    const algod = getAlgodClient();
     const account = await resolveSigningAccount();
-    const params  = await algod.getTransactionParams().do();
+    const params = await algod.getTransactionParams().do();
 
-    const noteBytes = buildNote({ entityType, entityId, versionNumber, action, actor, referenceUrl, payload });
+    const noteBytes = buildNote({
+      entityType,
+      entityId,
+      versionNumber,
+      action,
+      actor,
+      referenceUrl,
+      payload,
+    });
 
     // Algorand note field max = 1024 bytes — truncate payload gracefully
     const maxNoteBytes = 1000;
-    const safeNote = noteBytes.length <= maxNoteBytes
-      ? noteBytes
-      : new TextEncoder().encode(
-          JSON.stringify({
-            app       : "TraceHub",
-            entityType,
-            entityId,
-            action,
-            actor,
-            timestamp : new Date().toISOString(),
-            truncated : true,
-          })
-        );
+    const safeNote =
+      noteBytes.length <= maxNoteBytes
+        ? noteBytes
+        : new TextEncoder().encode(
+            JSON.stringify({
+              app: "TraceHub",
+              entityType,
+              entityId,
+              action,
+              actor,
+              timestamp: new Date().toISOString(),
+              truncated: true,
+            }),
+          );
 
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender   : account.addr,
-      receiver : account.addr,
-      amount   : 0,
-      note     : safeNote,
+      sender: account.addr,
+      receiver: account.addr,
+      amount: 0,
+      note: safeNote,
       suggestedParams: params,
     });
 
     const signedTxn = algosdk.signTransaction(txn, account.sk);
-    const { txid }  = await algod.sendRawTransaction(signedTxn.blob).do();
+    const { txid } = await algod.sendRawTransaction(signedTxn.blob).do();
 
     // ── Wait for confirmation ──────────────────────────────────────────────
     const confirmed = await algosdk.waitForConfirmation(algod, txid, 6);
-    const round     = confirmed["confirmed-round"] ?? confirmed.confirmedRound ?? "?";
+    const round =
+      confirmed["confirmed-round"] ?? confirmed.confirmedRound ?? "?";
 
-    console.log(`✅  Algorand TX confirmed | TXID: ${txid} | Round: ${round} | Action: ${action}`);
+    console.log(
+      `✅  Algorand TX confirmed | TXID: ${txid} | Round: ${round} | Action: ${action}`,
+    );
     return txid;
   });
 }
@@ -187,9 +298,14 @@ async function mintVersionProof(opts) {
   // ── Pre-flight ────────────────────────────────────────────────────────────
   const reachable = await checkAlgorandNode();
   if (!reachable) {
-    const id = makeFallbackTxId(opts.action);
-    console.warn(`⚠️   Algorand node unreachable — demo TX: ${id}`);
-    return id;
+    if (isDemoFallback()) {
+      const id = makeFallbackTxId(opts.action);
+      console.warn(`⚠️   Algorand node unreachable — demo TX: ${id}`);
+      return id;
+    }
+    throw new Error(
+      "Algorand node unreachable and ALGORAND_DEMO_FALLBACK is false",
+    );
   }
 
   // ── Real mint ─────────────────────────────────────────────────────────────
@@ -197,10 +313,13 @@ async function mintVersionProof(opts) {
     return await _mintOnChain(opts);
   } catch (err) {
     console.error("❌  Algorand mint failed after retries:", err.message);
-    // NEVER crash the upload flow — return a fallback so MongoDB still saves
-    const id = process.env.DEMO_FALLBACK_TXID ?? makeFallbackTxId(opts.action);
-    console.warn(`⚠️   Using fallback TX: ${id}`);
-    return id;
+    if (isDemoFallback()) {
+      const id =
+        process.env.DEMO_FALLBACK_TXID ?? makeFallbackTxId(opts.action);
+      console.warn(`⚠️   Using fallback TX: ${id}`);
+      return id;
+    }
+    throw err;
   }
 }
 
@@ -210,13 +329,13 @@ async function mintVersionProof(opts) {
  */
 async function mintProofOfPublication(ipfsUrl, uploaderName) {
   return mintVersionProof({
-    entityType    : "RESOURCE",
-    entityId      : "publication",
-    versionNumber : 1,
-    action        : "CREATE",
-    actor         : uploaderName,
-    referenceUrl  : ipfsUrl ?? "",
-    payload       : { ipfsUrl: ipfsUrl ?? "" },
+    entityType: "RESOURCE",
+    entityId: "publication",
+    versionNumber: 1,
+    action: "CREATE",
+    actor: uploaderName,
+    referenceUrl: ipfsUrl ?? "",
+    payload: { ipfsUrl: ipfsUrl ?? "" },
   });
 }
 
@@ -232,7 +351,7 @@ async function mintProofOfPublication(ipfsUrl, uploaderName) {
 async function verifyTxOnChain(txid) {
   if (!txid || txid.startsWith("DEMO_")) return null;
   try {
-    const algod  = getAlgodClient();
+    const algod = getAlgodClient();
     const result = await algod.pendingTransactionInformation(txid).do();
     return result["confirmed-round"] ?? result.confirmedRound ?? null;
   } catch {
