@@ -414,14 +414,23 @@ const Classrooms = () => {
     URL.revokeObjectURL(url);
   };
 
-  const formatSubmissionDateTime = (dateValue) => {
-    if (!dateValue) return { date: "-", time: "-" };
-    const parsedDate = new Date(dateValue);
-    if (Number.isNaN(parsedDate.getTime())) return { date: "-", time: "-" };
-    return {
-      date: parsedDate.toLocaleDateString(),
-      time: parsedDate.toLocaleTimeString(),
-    };
+  const handleOpenPostAttachment = async (postId, attachmentIndex) => {
+    if (!selectedClassroomId || !postId) return;
+
+    const result = await api.classrooms.downloadPostAttachment(
+      selectedClassroomId,
+      postId,
+      attachmentIndex,
+    );
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    const url = URL.createObjectURL(result.blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   };
 
   return (
@@ -738,28 +747,62 @@ const Classrooms = () => {
                     </div>
                     <p className="text-sm text-[#d8ebe3]">{post.body}</p>
 
-                    {Array.isArray(post.attachments) &&
-                      post.attachments.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {post.attachments.map((attachment, index) => (
-                            <a
-                              key={`${post._id}-attachment-${index}`}
-                              href={attachment.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded border border-white/20 px-2 py-1 text-xs underline"
-                            >
-                              {attachment.title || `Attachment ${index + 1}`}
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                  </>
-                ) : (
-                  <>
-                    {(() => {
-                      const submission = formatSubmissionDateTime(post.dueDate);
-                      return (
+                {Array.isArray(post.attachments) &&
+                  post.attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {post.attachments.map((attachment, index) => (
+                        <button
+                          key={`${post._id}-attachment-${index}`}
+                          type="button"
+                          onClick={() =>
+                            handleOpenPostAttachment(post._id, index)
+                          }
+                          className="rounded border border-white/20 px-2 py-1 text-xs underline"
+                        >
+                          {attachment.title || `Attachment ${index + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                {!isTeacher && post.type === "ASSIGNMENT" && (
+                  <form
+                    onSubmit={(e) => handleSubmitAssignment(e, post._id)}
+                    className="mt-3 rounded border border-white/10 bg-[#0f1613d9] p-3"
+                  >
+                    <input
+                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
+                      placeholder="Submission link (optional)"
+                      value={submissionForm.link}
+                      onChange={(e) =>
+                        setSubmissionForm((prev) => ({
+                          ...prev,
+                          link: e.target.value,
+                        }))
+                      }
+                    />
+                    <textarea
+                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
+                      placeholder="Notes/text (optional)"
+                      value={submissionForm.text}
+                      onChange={(e) =>
+                        setSubmissionForm((prev) => ({
+                          ...prev,
+                          text: e.target.value,
+                        }))
+                      }
+                    />
+                    <input
+                      className="mb-2 block w-full text-sm"
+                      type="file"
+                      multiple
+                      onChange={(e) =>
+                        setSubmissionForm((prev) => ({
+                          ...prev,
+                          files: Array.from(e.target.files || []),
+                        }))
+                      }
+                    />
                     <button
                       type="button"
                       onClick={() =>

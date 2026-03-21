@@ -7,6 +7,7 @@ import {
   joinClassroom,
   createPost,
   fetchClassroomPosts,
+  downloadPostAttachment,
   updatePost,
   submitLink,
   submitAssignment,
@@ -27,6 +28,11 @@ router.post(
 router.post("/join", authMiddleware, joinClassroom);
 
 router.get("/:classroomId/posts", authMiddleware, fetchClassroomPosts);
+router.get(
+  "/:classroomId/posts/:postId/attachments/:attachmentIndex",
+  authMiddleware,
+  downloadPostAttachment,
+);
 router.post(
   "/:classroomId/posts",
   authMiddleware,
