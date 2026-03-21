@@ -9,6 +9,8 @@ const Navigation = () => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileActive, setProfileActive] = useState(false);
+  const [profileHovered, setProfileHovered] = useState(false);
+  const [logoutHovered, setLogoutHovered] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -164,9 +166,13 @@ const Navigation = () => {
                 navigate("/profile");
                 setMenuOpen(false);
               }}
-              className={`flex flex-col gap-1 rounded-lg px-3 py-2 transition md:items-end ${
-                profileActive
-                  ? "bg-[#2ff5a8] text-[#142019] font-semibold"
+              onMouseEnter={() => setProfileHovered(true)}
+              onMouseLeave={() => setProfileHovered(false)}
+              className={`flex flex-col gap-1 rounded-lg px-3 py-2 transition cursor-pointer md:items-end ${
+                profileHovered
+                  ? "text-blue-400 underline"
+                  : profileActive
+                  ? "text-[#2ff5a8] font-semibold"
                   : "text-slate-100 hover:bg-white/10"
               }`}
             >
@@ -179,7 +185,13 @@ const Navigation = () => {
             </button>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-red-500 hover:bg-red-500/20 hover:text-red-300"
+              onMouseEnter={() => setLogoutHovered(true)}
+              onMouseLeave={() => setLogoutHovered(false)}
+              className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+                logoutHovered
+                  ? "border-red-700 bg-red-700 text-white"
+                  : "border-white/20 bg-white/10 text-slate-100"
+              }`}
             >
               <LogOut size={18} />
               Logout

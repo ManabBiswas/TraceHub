@@ -22,6 +22,7 @@ const Resources = () => {
     aiTagsText: "",
     file: null,
   });
+  const [classroomSelectFocused, setClassroomSelectFocused] = useState(false);
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -170,7 +171,13 @@ const Resources = () => {
           <select
             value={selectedClassroomId}
             onChange={(e) => setSelectedClassroomId(e.target.value)}
-            className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-slate-100"
+            onFocus={() => setClassroomSelectFocused(true)}
+            onBlur={() => setClassroomSelectFocused(false)}
+            className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+              classroomSelectFocused
+                ? "border-[#2ff5a8] bg-[#2ff5a8] text-[#142019]"
+                : "border-white/20 bg-white/10 text-slate-100 hover:border-[#2ff5a8] hover:bg-[#2ff5a822]"
+            }`}
           >
             {classrooms.length === 0 && <option value="">No classrooms</option>}
             {classrooms.map((classroom) => (

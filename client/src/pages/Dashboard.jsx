@@ -59,7 +59,7 @@ const Dashboard = () => {
         {/* All Users */}
         <Link to="/resources" className={cardClass}>
           <BookOpen
-            size={56}
+            size={80}
             className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
           />
           <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
@@ -72,7 +72,7 @@ const Dashboard = () => {
 
         <Link to="/classrooms" className={cardClass}>
           <School
-            size={56}
+            size={80}
             className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
           />
           <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
@@ -87,7 +87,7 @@ const Dashboard = () => {
         {(isProfessor || isAdmin) && (
           <Link to="/upload" className={`${cardClass} border-[#2ff5a866]`}>
             <Upload
-              size={56}
+              size={80}
               className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
             />
             <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
@@ -103,7 +103,7 @@ const Dashboard = () => {
         {(isProfessor || isAdmin) && (
           <Link to="/pending" className={`${cardClass} border-[#2ff5a866]`}>
             <Clock
-              size={56}
+              size={80}
               className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
             />
             <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
@@ -118,7 +118,7 @@ const Dashboard = () => {
         {/* My Resources */}
         <Link to="/my-resources" className={cardClass}>
           <Sparkles
-            size={56}
+            size={80}
             className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
           />
           <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
