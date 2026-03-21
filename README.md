@@ -3,7 +3,7 @@
 
 > A decentralized, AI-powered academic archive that solves two real problems in modern universities: fragile storage and unverifiable student work.
 
-Built for **Binary V2 Hackathon** — 36-hour sprint.
+<!-- Built for **Binary V2 Hackathon** — 36-hour sprint. -->
 
 ---
 
@@ -36,8 +36,8 @@ The result: a permanent, AI-enriched, blockchain-timestamped academic archive.
 |---|---|---|
 | Education | ₹10K | Reimagining project submission and the college LMS |
 | Algorand | $500 | Blockchain as a tamper-proof publication notary |
-| Duality | $200 | Decentralized storage for academic files |
-| Requesty | $150 | Dynamic AI routing for document analysis |
+<!-- | Duality | $200 | Decentralized storage for academic files |
+| Requesty | $150 | Dynamic AI routing for document analysis | -->
 | AI/ML | ₹10K | Semantic analysis of academic documents |
 
 ---
@@ -50,7 +50,7 @@ The result: a permanent, AI-enriched, blockchain-timestamped academic archive.
 | Backend | Node.js, Express.js |
 | Database | MongoDB Atlas + Mongoose |
 | AI Routing | Requesty API |
-| Decentralized Storage | Duality Network |
+<!-- | Decentralized Storage | Duality Network | -->
 | Blockchain Notary | Algorand Testnet (algosdk) |
 | File Parsing | multer, pdf-parse |
 
@@ -130,7 +130,7 @@ Frontend runs on `http://localhost:5173`, backend on `http://localhost:3000`.
 
 ---
 
-## Demo
+<!-- ## Demo
 
 > Upload flow → AI analysis → Algorand verification
 
@@ -140,14 +140,14 @@ Frontend runs on `http://localhost:5173`, backend on `http://localhost:3000`.
 4. View your resource card with the green **Verified on Algorand** badge
 5. Click the badge to open the live transaction on the Algorand Testnet Explorer
 
----
+--- -->
 
-## Limitations (Hackathon MVP)
+<!-- ## Limitations (Hackathon MVP)
 
 - PDF uploads only, max 5MB
 - Algorand Testnet only (not Mainnet)
 - No user authentication — uploader name is a plain text field
 - No forking/lineage system in this release (planned for v2)
-- AI originality score is based on architectural analysis of the abstract, not a plagiarism check
+- AI originality score is based on architectural analysis of the abstract, not a plagiarism check -->
 
 ---
