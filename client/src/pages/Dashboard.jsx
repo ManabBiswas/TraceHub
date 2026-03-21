@@ -6,20 +6,13 @@ import {
   Upload,
   Clock,
   Sparkles,
-  User,
-  Info,
   School,
   CreditCard,
 } from "lucide-react";
 
 const Dashboard = () => {
-  const { user, logout, isProfessor, isAdmin, renewSubscription } = useAuth();
+  const { user, isProfessor, isAdmin, renewSubscription } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login/student");
-  };
 
   const cardClass =
     "flex flex-col rounded-2xl border border-[#2ff5a838] bg-white/10 p-8 text-[#e8f2ed] shadow-2xl backdrop-blur transition hover:-translate-y-1 hover:border-[#2ff5a866]";
@@ -59,12 +52,6 @@ const Dashboard = () => {
                 Renew Subscription
               </button>
             )}
-          <button
-            onClick={handleLogout}
-            className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/20"
-          >
-            Logout
-          </button>
         </div>
       </div>
 
@@ -142,34 +129,7 @@ const Dashboard = () => {
           </p>
         </Link>
 
-        {/* Profile */}
-        <Link to="/profile" className={cardClass}>
-          <User
-            size={56}
-            className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-          />
-          <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-            Profile
-          </h3>
-          <p className="text-lg leading-8 text-[#bfd0c8]">
-            Manage your account information
-          </p>
-        </Link>
 
-        {/* Info Card */}
-        <div className="flex cursor-default flex-col rounded-2xl border border-[#2ff5a838] bg-white/10 p-8 text-[#e8f2ed] shadow-2xl backdrop-blur">
-          <Info
-            size={56}
-            className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-          />
-          <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-            About TraceHub
-          </h3>
-          <p className="text-lg leading-8 text-[#bfd0c8]">
-            A secure platform for publishing and verifying academic resources
-            with blockchain proof
-          </p>
-        </div>
       </div>
     </div>
   );

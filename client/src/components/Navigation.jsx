@@ -8,6 +8,7 @@ const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileActive, setProfileActive] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -154,28 +155,31 @@ const Navigation = () => {
                 </Link>
               </>
             )}
-
-            <Link
-              to="/profile"
-              className={navLinkClass(isActive("/profile"))}
-              onClick={() => setMenuOpen(false)}
-            >
-              Profile
-            </Link>
           </div>
 
           <div className="ml-auto flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center md:gap-4">
-            <span className="flex flex-col md:items-end">
-              <span className="text-sm font-semibold text-slate-100">
+            <button
+              onClick={() => {
+                setProfileActive(true);
+                navigate("/profile");
+                setMenuOpen(false);
+              }}
+              className={`flex flex-col gap-1 rounded-lg px-3 py-2 transition md:items-end ${
+                profileActive
+                  ? "bg-[#2ff5a8] text-[#142019] font-semibold"
+                  : "text-slate-100 hover:bg-white/10"
+              }`}
+            >
+              <span className="text-sm font-semibold">
                 {user?.name}
               </span>
-              <span className="text-xs capitalize text-slate-400">
+              <span className="text-xs capitalize">
                 {user?.role}
               </span>
-            </span>
+            </button>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/20"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-red-500 hover:bg-red-500/20 hover:text-red-300"
             >
               <LogOut size={18} />
               Logout
