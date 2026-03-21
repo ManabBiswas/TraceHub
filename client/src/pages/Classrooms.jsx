@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../config/Api";
 import { useAuth } from "../context/AuthContext";
 
 const Classrooms = () => {
   const { user, isProfessor, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
   const [posts, setPosts] = useState([]);
@@ -412,6 +414,16 @@ const Classrooms = () => {
     URL.revokeObjectURL(url);
   };
 
+  const formatSubmissionDateTime = (dateValue) => {
+    if (!dateValue) return { date: "-", time: "-" };
+    const parsedDate = new Date(dateValue);
+    if (Number.isNaN(parsedDate.getTime())) return { date: "-", time: "-" };
+    return {
+      date: parsedDate.toLocaleDateString(),
+      time: parsedDate.toLocaleTimeString(),
+    };
+  };
+
   return (
     <div className="mx-auto w-full max-w-360 rounded-2xl bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] p-4 md:p-8 text-[#e8f2ed]">
       <h1 className="mb-6 text-3xl font-bold">Classrooms</h1>
@@ -624,8 +636,22 @@ const Classrooms = () => {
                 <label className="mb-1 block text-sm">
                   Attach files to post (optional, max 5)
                 </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor="create-post-files"
+                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
+                  >
+                    Choose Files
+                  </label>
+                  <span className="text-xs text-[#bcd2c9]">
+                    {createPostForm.files.length > 0
+                      ? `${createPostForm.files.length} file(s) selected`
+                      : "No file chosen"}
+                  </span>
+                </div>
                 <input
-                  className="block w-full text-sm"
+                  id="create-post-files"
+                  className="hidden"
                   type="file"
                   accept="application/pdf,.pdf"
                   multiple
@@ -696,84 +722,72 @@ const Classrooms = () => {
                 key={post._id}
                 className="rounded border border-white/10 bg-[#1f292580] p-3"
               >
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{post.title}</p>
-                    <p className="text-xs text-[#bcd2c9]">{post.type}</p>
-                  </div>
-                  {isTeacher && (
-                    <button
-                      className="rounded border border-white/20 px-3 py-1 text-xs"
-                      onClick={() => setSelectedPostId(post._id)}
-                    >
-                      Manage Submissions
-                    </button>
-                  )}
-                </div>
-                <p className="text-sm text-[#d8ebe3]">{post.body}</p>
-
-                {Array.isArray(post.attachments) &&
-                  post.attachments.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {post.attachments.map((attachment, index) => (
-                        <a
-                          key={`${post._id}-attachment-${index}`}
-                          href={attachment.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded border border-white/20 px-2 py-1 text-xs underline"
-                        >
-                          {attachment.title || `Attachment ${index + 1}`}
-                        </a>
-                      ))}
+                {isTeacher ? (
+                  <>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{post.title}</p>
+                        <p className="text-xs text-[#bcd2c9]">{post.type}</p>
+                      </div>
+                      <button
+                        className="rounded border border-white/20 px-3 py-1 text-xs"
+                        onClick={() => setSelectedPostId(post._id)}
+                      >
+                        Manage Submissions
+                      </button>
                     </div>
-                  )}
+                    <p className="text-sm text-[#d8ebe3]">{post.body}</p>
 
-                {!isTeacher && post.type === "ASSIGNMENT" && (
-                  <form
-                    onSubmit={(e) => handleSubmitAssignment(e, post._id)}
-                    className="mt-3 rounded border border-white/10 bg-[#0f1613d9] p-3"
-                  >
-                    <input
-                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                      placeholder="Submission link (optional)"
-                      value={submissionForm.link}
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          link: e.target.value,
-                        }))
-                      }
-                    />
-                    <textarea
-                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                      placeholder="Notes/text (optional)"
-                      value={submissionForm.text}
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          text: e.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      className="mb-2 block w-full text-sm"
-                      type="file"
-                      multiple
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          files: Array.from(e.target.files || []),
-                        }))
-                      }
-                    />
+                    {Array.isArray(post.attachments) &&
+                      post.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {post.attachments.map((attachment, index) => (
+                            <a
+                              key={`${post._id}-attachment-${index}`}
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded border border-white/20 px-2 py-1 text-xs underline"
+                            >
+                              {attachment.title || `Attachment ${index + 1}`}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                  </>
+                ) : (
+                  <>
+                    {(() => {
+                      const submission = formatSubmissionDateTime(post.dueDate);
+                      return (
                     <button
-                      type="submit"
-                      className="rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019]"
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          `/classrooms/${selectedClassroomId}/posts/${post._id}`,
+                        )
+                      }
+                      className="group w-full rounded border border-[#2ff5a838] bg-[#10201899] px-3 py-3 text-left transition hover:border-[#2ff5a866]"
                     >
-                      Submit Assignment
+                      <div className="flex items-center gap-4 text-sm leading-6">
+                        <span className="cursor-pointer font-semibold text-[#e8f2ed] underline-offset-2 transition group-hover:text-[#2ff5a8] group-hover:underline">
+                          {post.title}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-6 text-sm text-[#bcd2c9]">
+                        <span>{post.type}</span>
+                        {post.type === "ASSIGNMENT" && (
+                          <span className="flex flex-wrap items-center gap-x-10 gap-y-2 whitespace-nowrap text-base font-bold tracking-wide text-[#e8f2ed] md:gap-x-14">
+                            <span>Submission:</span>
+                            <span>Date:- {submission.date}</span>
+                            <span>Time:- {submission.time}</span>
+                          </span>
+                        )}
+                      </div>
                     </button>
-                  </form>
+                      );
+                    })()}
+                  </>
                 )}
               </div>
             ))}
