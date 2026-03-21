@@ -10,58 +10,77 @@ import Resource from "../models/Resource.js";
 
 const router = express.Router();
 
+/** Helper — detect if the uploaded file is an image */
+const isImage = (mimetype) => mimetype.startsWith("image/");
+
+/**
+ * Extract a text string from an uploaded buffer.
+ * - PDF  → use pdf-parse
+ * - Image → return a descriptive placeholder so the AI prompt still gets
+ *           something meaningful (vision analysis via Requesty is a v2 feature)
+ */
+async function extractFileText(buffer, mimetype, originalname) {
+  if (mimetype === "application/pdf") {
+    return await extractText(buffer);
+  }
+  // Image: return a minimal stub — the AI service will generate a generic summary
+  return `[Image upload: ${originalname}]\nThis resource is an image file. Please analyse and summarise its academic content.`;
+}
+
 /**
  * POST /api/upload
- * Upload a document (PROFESSOR or HOD upload directly with status=approved)
+ * Upload a PDF or image (PROFESSOR or HOD only).
  * Requires: JWT authentication + PROFESSOR/HOD role
  */
 router.post("/", authMiddleware, uploadGuard, upload.single("file"), async (req, res) => {
   try {
     const { title } = req.body;
-    const fileBuffer = req.file.buffer;
-    const user = req.user;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
     if (!title) {
-      return res.status(400).json({
-        error: "Missing required field: title"
-      });
+      return res.status(400).json({ error: "Missing required field: title" });
     }
 
-    // Verify user can upload (Professor or HOD)
+    const { buffer, mimetype, originalname } = req.file;
+    const user = req.user;
+    const fileIsImage = isImage(mimetype);
+
     if (!user.canUpload()) {
       return res.status(403).json({
-        error: `Upload access denied. You are a ${user.role}. Only Professors and HODs can upload.`
+        error: `Upload access denied. You are a ${user.role}. Only Professors and HODs can upload.`,
       });
     }
 
-    // Map user role to document role (for AI analysis)
-    const documentRole = "Professor";
-
-    // Step 1: Extract text from PDF
-    const rawText = await extractText(fileBuffer);
-
-    // Step 2: AI analysis
-    let aiData = {};
+    // ── Step 1: Extract text ────────────────────────────────────────────────
+    let rawText = "";
     try {
-      aiData = await analyzeDocument(rawText, documentRole);
+      rawText = await extractFileText(buffer, mimetype, originalname);
     } catch (e) {
-      console.error("Requesty failed, using mock:", e.message);
-      aiData = {
-        summary: "AI analysis unavailable.",
-        tags: [],
-        flashcards: []
-      };
+      console.error("Text extraction failed:", e.message);
+      rawText = `[${fileIsImage ? "Image" : "PDF"} upload: ${title}] Text extraction failed.`;
     }
 
-    // Step 3a: Duality upload
+    // ── Step 2: AI analysis ─────────────────────────────────────────────────
+    let aiData = {};
+    try {
+      aiData = await analyzeDocument(rawText, "Professor");
+    } catch (e) {
+      console.error("Requesty failed, using mock:", e.message);
+      aiData = { summary: "AI analysis unavailable.", tags: [], flashcards: [] };
+    }
+
+    // ── Step 3a: Duality upload ─────────────────────────────────────────────
     let dualityUrl = null;
     try {
-      dualityUrl = await uploadToDuality(fileBuffer, req.file.originalname);
+      dualityUrl = await uploadToDuality(buffer, originalname);
     } catch (e) {
       console.error("Duality upload failed:", e.message);
     }
 
-    // Step 3b: Algorand mint (professors auto-approved)
+    // ── Step 3b: Algorand mint (professors auto-approved) ───────────────────
     let algorandTxId = null;
     try {
       if (dualityUrl) {
@@ -72,22 +91,23 @@ router.post("/", authMiddleware, uploadGuard, upload.single("file"), async (req,
       algorandTxId = process.env.DEMO_FALLBACK_TXID || null;
     }
 
-    // Step 4: Save to MongoDB (professors auto-approved)
+    // ── Step 4: Save to MongoDB ─────────────────────────────────────────────
     const resource = new Resource({
       title,
       uploaderName: user.name,
       uploaderEmail: user.email,
       userId: user._id,
       userDepartment: user.department,
-      role: documentRole,
-      status: "approved", // Professors auto-approve
+      role: "Professor",
+      status: "approved",          // Professors auto-approve
       approvedBy: user.name,
       approvedAt: new Date(),
+      fileType: fileIsImage ? "image" : "pdf",   // handy for the frontend
       aiSummary: aiData.summary,
       aiTags: aiData.tags || [],
       aiFlashcards: aiData.flashcards || [],
       dualityUrl,
-      algorandTxId
+      algorandTxId,
     });
 
     await resource.save();
@@ -95,7 +115,7 @@ router.post("/", authMiddleware, uploadGuard, upload.single("file"), async (req,
 
     res.status(200).json({
       message: "Document uploaded successfully and verified on blockchain",
-      resource
+      resource,
     });
   } catch (err) {
     console.error("Upload route error:", err);
@@ -114,7 +134,7 @@ router.post("/github", upload.none(), async (req, res) => {
 
     if (!title || !githubUrl || !studentName) {
       return res.status(400).json({
-        error: "Missing required fields: title, githubUrl, studentName"
+        error: "Missing required fields: title, githubUrl, studentName",
       });
     }
 
@@ -123,9 +143,7 @@ router.post("/github", upload.none(), async (req, res) => {
     try {
       rawText = await fetchGitHubReadme(githubUrl);
     } catch (e) {
-      return res.status(400).json({
-        error: `Failed to fetch GitHub README: ${e.message}`
-      });
+      return res.status(400).json({ error: `Failed to fetch GitHub README: ${e.message}` });
     }
 
     // Step 2: AI analysis (student role)
@@ -134,27 +152,21 @@ router.post("/github", upload.none(), async (req, res) => {
       aiData = await analyzeDocument(rawText, "Student");
     } catch (e) {
       console.error("Requesty failed, using mock:", e.message);
-      aiData = {
-        summary: "AI analysis unavailable.",
-        tags: [],
-        techStack: [],
-        originalityScore: 70
-      };
+      aiData = { summary: "AI analysis unavailable.", tags: [], techStack: [], originalityScore: 70 };
     }
 
-    // Step 3: Save to MongoDB (pending approval, no Duality/Algorand yet)
+    // Step 3: Save to MongoDB (pending approval)
     const resource = new Resource({
       title,
       uploaderName: studentName,
-      uploaderEmail: "student@university.edu", // Placeholder
+      uploaderEmail: "student@university.edu",
       role: "Student",
-      status: "pending", // Awaiting professor approval
-      githubUrl, // Store the GitHub URL
+      status: "pending",
+      githubUrl,
       aiSummary: aiData.summary,
       aiTags: aiData.tags || [],
       techStack: aiData.techStack || [],
-      originalityScore: aiData.originalityScore || null
-      // dualityUrl and algorandTxId are null until approved
+      originalityScore: aiData.originalityScore || null,
     });
 
     await resource.save();
@@ -162,7 +174,7 @@ router.post("/github", upload.none(), async (req, res) => {
     res.status(201).json({
       message: "GitHub project submitted for approval. Awaiting professor review.",
       resource,
-      status: "pending"
+      status: "pending",
     });
   } catch (err) {
     console.error("GitHub upload error:", err);

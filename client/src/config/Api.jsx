@@ -126,14 +126,30 @@ export const api = {
       formData.append("file", file);
       formData.append("title", title);
 
-      const response = await fetch(`${API_BASE_URL}/upload`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: formData,
-      });
-      return response.json();
+      try {
+        const response = await fetch(`${API_BASE_URL}/upload`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+          },
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        // If response is not ok, data should contain an error field
+        if (!response.ok) {
+          return {
+            error: data.error || `Upload failed with status ${response.status}`,
+          };
+        }
+
+        return data;
+      } catch (err) {
+        return {
+          error: err.message || "Network error during upload",
+        };
+      }
     },
   },
 
