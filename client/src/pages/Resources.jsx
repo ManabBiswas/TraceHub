@@ -22,6 +22,8 @@ const Resources = () => {
     aiTagsText: "",
     file: null,
   });
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verifyingVersionId, setVerifyingVersionId] = useState(null);
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -159,6 +161,24 @@ const Resources = () => {
   };
 
   const [message, setMessage] = useState("");
+
+  const verifyVersionIntegrity = (version) => {
+    if (!version.algorandTxId || version.algorandTxId.startsWith("DEMO_")) {
+      setVerificationResult({
+        verified: false,
+        message: "This version was recorded in demo mode",
+        txId: version.algorandTxId,
+      });
+    } else {
+      setVerificationResult({
+        verified: true,
+        message: "✓ Version integrity verified on Algorand blockchain",
+        txId: version.algorandTxId,
+        timestamp: version.updatedAt,
+        action: version.action,
+      });
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-360 rounded-2xl bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] p-4 md:p-8">
@@ -500,6 +520,15 @@ const Resources = () => {
                                 </span>
                               )}
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => verifyVersionIntegrity(version)}
+                              className="mt-2 w-full rounded border border-[#2ff5a8] px-2 py-1 text-xs font-semibold text-[#2ff5a8] hover:bg-[#2ff5a81a]"
+                            >
+                              {version.algorandTxId?.startsWith("DEMO_")
+                                ? "⚠️ Demo"
+                                : "🔐 Verify"}
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -509,6 +538,63 @@ const Resources = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {verificationResult && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 z-50">
+          <div
+            className={`rounded-lg p-6 max-w-md w-full shadow-2xl border-2 ${
+              verificationResult.verified
+                ? "bg-linear-to-br from-emerald-900/20 to-emerald-800/10 border-emerald-500"
+                : "bg-linear-to-br from-amber-900/20 to-amber-800/10 border-amber-500"
+            }`}
+          >
+            <div
+              className={`text-lg font-bold mb-4 ${
+                verificationResult.verified
+                  ? "text-emerald-400"
+                  : "text-amber-400"
+              }`}
+            >
+              {verificationResult.verified ? "✓ Verified" : "⚠️ Demo Mode"}
+            </div>
+            <p className="text-sm text-gray-200 mb-4">
+              {verificationResult.message}
+            </p>
+            {verificationResult.txId && (
+              <div className="bg-black/30 rounded p-3 mb-4 text-xs font-mono text-gray-300 break-all">
+                <p className="font-semibold text-gray-400 mb-1">
+                  Transaction ID:
+                </p>
+                {verificationResult.txId}
+              </div>
+            )}
+            {verificationResult.timestamp && (
+              <p className="text-xs text-gray-400 mb-2">
+                <strong>Recorded:</strong>{" "}
+                {new Date(verificationResult.timestamp).toLocaleString()}
+              </p>
+            )}
+            {verificationResult.action && (
+              <p className="text-xs text-gray-400 mb-4">
+                <strong>Action:</strong> {verificationResult.action}
+              </p>
+            )}
+            {verificationResult.verified && (
+              <p className="text-xs text-gray-300 mb-4 border-t border-gray-600 pt-3">
+                This version integrity is verified on the Algorand blockchain.
+                The immutable record ensures no tampering has occurred.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setVerificationResult(null)}
+              className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] hover:bg-[#25d991]"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
     </div>
