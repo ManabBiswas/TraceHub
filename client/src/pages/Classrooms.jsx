@@ -643,8 +643,22 @@ const Classrooms = () => {
                 <label className="mb-1 block text-sm">
                   Attach files to post (optional, max 5)
                 </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor="create-post-files"
+                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
+                  >
+                    Choose Files
+                  </label>
+                  <span className="text-xs text-[#bcd2c9]">
+                    {createPostForm.files.length > 0
+                      ? `${createPostForm.files.length} file(s) selected`
+                      : "No file chosen"}
+                  </span>
+                </div>
                 <input
-                  className="block w-full text-sm"
+                  id="create-post-files"
+                  className="hidden"
                   type="file"
                   accept="application/pdf,.pdf"
                   multiple
@@ -729,6 +743,7 @@ const Classrooms = () => {
                     </button>
                   )}
                 </div>
+
                 <p className="text-sm text-[#d8ebe3]">{post.body}</p>
 
                 {Array.isArray(post.attachments) &&

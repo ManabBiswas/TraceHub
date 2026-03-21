@@ -2,7 +2,24 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../config/Api";
-import { Upload as UploadIcon, Check, Database, Lock } from "lucide-react";
+import {
+  Upload as UploadIcon,
+  Check,
+  Database,
+  Lock,
+  Image,
+  FileText,
+} from "lucide-react";
+
+const ACCEPTED_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
+const ACCEPTED_EXT = ".pdf,.jpg,.jpeg,.png,.webp";
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit matching backend
 
 const Upload = () => {
   const [file, setFile] = useState(null);
@@ -15,6 +32,27 @@ const Upload = () => {
   const navigate = useNavigate();
   const { user, isProfessor, isAdmin } = useAuth();
 
+  useEffect(() => {
+    if (!isProfessor && !isAdmin) {
+      return;
+    }
+
+    const loadClassrooms = async () => {
+      try {
+        const response = await api.classrooms.getAll();
+        const nextClassrooms = response.classrooms || [];
+        setClassrooms(nextClassrooms);
+        if (nextClassrooms.length > 0) {
+          setClassroomId(nextClassrooms[0]._id);
+        }
+      } catch {
+        setError("Failed to load classrooms");
+      }
+    };
+
+    void loadClassrooms();
+  }, [isProfessor, isAdmin]);
+
   if (!isProfessor && !isAdmin) {
     return (
       <div className="flex min-h-[calc(100vh-70px)] items-center justify-center bg-[radial-gradient(640px_380px_at_20%_16%,rgba(47,245,168,0.26),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] px-4 py-8">
@@ -25,31 +63,28 @@ const Upload = () => {
     );
   }
 
-  useEffect(() => {
-    const loadClassrooms = async () => {
-      try {
-        const response = await api.classrooms.getAll();
-        const nextClassrooms = response.classrooms || [];
-        setClassrooms(nextClassrooms);
-        if (nextClassrooms.length > 0) {
-          setClassroomId(nextClassrooms[0]._id);
-        }
-      } catch (err) {
-        setError("Failed to load classrooms");
-      }
-    };
-
-    void loadClassrooms();
-  }, []);
-
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
+
+    if (!ACCEPTED_TYPES.includes(selectedFile.type)) {
+      setError("Please select a valid PDF or image file (JPG, PNG, WEBP)");
+      setFile(null);
+      return;
+    }
+
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      setError("File is too large. Maximum allowed size is 5MB.");
+      setFile(null);
+      return;
+    }
+
+    if (selectedFile && ACCEPTED_TYPES.includes(selectedFile.type)) {
       setFile(selectedFile);
       setError("");
-    } else {
-      setError("Please select a valid PDF file");
-      setFile(null);
     }
   };
 
@@ -59,7 +94,7 @@ const Upload = () => {
     setSuccess("");
 
     if (!file || !title || !classroomId) {
-      setError("Please provide title, classroom, and PDF file");
+      setError("Please provide title, classroom, and a valid file");
       return;
     }
 
@@ -107,6 +142,7 @@ const Upload = () => {
         )}
 
         <form onSubmit={handleSubmit} className="my-8">
+          {/* Title */}
           <div className="mb-6 flex flex-col">
             <label
               htmlFor="title"
@@ -140,17 +176,18 @@ const Upload = () => {
               className="w-full rounded-lg border border-[#2ff5a838] bg-[#1f2925cc] px-4 py-3 text-[#e8f2ed] outline-none transition focus:border-[#2ff5a8] focus:ring-2 focus:ring-[#2ff5a866]"
             >
               {classrooms.length === 0 && (
-                <option value="">No classrooms found</option>
+                <option value="">No classrooms available</option>
               )}
               {classrooms.map((classroom) => (
                 <option key={classroom._id} value={classroom._id}>
-                  {classroom.name}{" "}
-                  {classroom.section ? `(${classroom.section})` : ""}
+                  {classroom.name}
+                  {classroom.section ? ` (${classroom.section})` : ""}
                 </option>
               ))}
             </select>
           </div>
 
+          {/* File picker */}
           <div className="mb-6 flex flex-col">
             <label
               htmlFor="file"
@@ -158,18 +195,32 @@ const Upload = () => {
             >
               <UploadIcon size={48} className="mb-4 text-[#2ff5a8]" />
               <span className="text-center font-semibold text-[#e8f2ed]">
-                {file ? `Selected: ${file.name}` : "Click to select PDF file"}
+                {file
+                  ? `Selected: ${file.name}`
+                  : "Click to select PDF or image file"}
               </span>
+
+              {/* accepted type badges */}
+              <div className="mt-3 flex gap-2 text-xs text-[#9ec0b2]">
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#2ff5a838] px-2 py-0.5">
+                  <FileText size={12} /> PDF
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#2ff5a838] px-2 py-0.5">
+                  <Image size={12} /> JPG / PNG / WEBP
+                </span>
+              </div>
+
               <input
                 id="file"
                 type="file"
-                accept=".pdf"
+                accept={ACCEPTED_EXT}
                 onChange={handleFileChange}
                 style={{ display: "none" }}
               />
             </label>
           </div>
 
+          {/* Processing info */}
           <div className="my-8 rounded-lg border border-[#2ff5a857] bg-linear-to-br from-[#2ff5a829] to-[#2ff5a814] p-6">
             <h4 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#e8f2ed]">
               Document Processing
