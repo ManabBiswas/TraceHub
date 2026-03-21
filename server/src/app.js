@@ -8,6 +8,7 @@ import pendingRouter from "./routes/pending.js";
 import classroomsRouter from "./routes/classrooms.js";
 import resourcesRouter from "./routes/resources.js";
 import verifyRouter from "./routes/verify.js";
+import projectSubmissionsRouter from "./routes/projectSubmissions.js";
 
 import { isDBConnected, getDBStats } from "./config/db.js";
 import { isAlgorandHealthy } from "./services/algorand.service.js";
@@ -68,7 +69,12 @@ app.use("/api/auth", authRouter);
 app.use("/api/resources", resourcesRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/pending", pendingRouter);
-app.use("/api/classrooms", classroomsRouter); app.use("/api/verify", verifyRouter);
+app.use("/api/classrooms", classroomsRouter);
+app.use(
+  "/api/classrooms/:classroomId/posts/:postId/project-submissions",
+  projectSubmissionsRouter
+);
+app.use("/api/verify", verifyRouter);
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
