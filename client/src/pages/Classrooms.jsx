@@ -747,100 +747,113 @@ const Classrooms = () => {
                     </div>
                     <p className="text-sm text-[#d8ebe3]">{post.body}</p>
 
-                {Array.isArray(post.attachments) &&
-                  post.attachments.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {post.attachments.map((attachment, index) => (
+                    {Array.isArray(post.attachments) &&
+                      post.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {post.attachments.map((attachment, index) => (
+                            <button
+                              key={`${post._id}-attachment-${index}`}
+                              type="button"
+                              onClick={() =>
+                                handleOpenPostAttachment(post._id, index)
+                              }
+                              className="rounded border border-white/20 px-2 py-1 text-xs underline"
+                            >
+                              {attachment.title || `Attachment ${index + 1}`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                    {!isTeacher && post.type === "ASSIGNMENT" && (
+                      <form
+                        onSubmit={(e) => handleSubmitAssignment(e, post._id)}
+                        className="mt-3 rounded border border-white/10 bg-[#0f1613d9] p-3"
+                      >
+                        <input
+                          className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
+                          placeholder="Submission link (optional)"
+                          value={submissionForm.link}
+                          onChange={(e) =>
+                            setSubmissionForm((prev) => ({
+                              ...prev,
+                              link: e.target.value,
+                            }))
+                          }
+                        />
+                        <textarea
+                          className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
+                          placeholder="Notes/text (optional)"
+                          value={submissionForm.text}
+                          onChange={(e) =>
+                            setSubmissionForm((prev) => ({
+                              ...prev,
+                              text: e.target.value,
+                            }))
+                          }
+                        />
+                        <input
+                          className="mb-2 block w-full text-sm"
+                          type="file"
+                          multiple
+                          onChange={(e) =>
+                            setSubmissionForm((prev) => ({
+                              ...prev,
+                              files: Array.from(e.target.files || []),
+                            }))
+                          }
+                        />
                         <button
-                          key={`${post._id}-attachment-${index}`}
                           type="button"
                           onClick={() =>
-                            handleOpenPostAttachment(post._id, index)
+                            navigate(
+                              `/classrooms/${selectedClassroomId}/posts/${post._id}`,
+                            )
                           }
-                          className="rounded border border-white/20 px-2 py-1 text-xs underline"
+                          className="group w-full rounded border border-[#2ff5a838] bg-[#10201899] px-3 py-3 text-left transition hover:border-[#2ff5a866]"
                         >
-                          {attachment.title || `Attachment ${index + 1}`}
+                          <div className="flex items-center gap-4 text-sm leading-6">
+                            <span className="cursor-pointer font-semibold text-[#e8f2ed] underline-offset-2 transition group-hover:text-[#2ff5a8] group-hover:underline">
+                              {post.title}
+                            </span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-6 text-sm text-[#bcd2c9]">
+                            <span>{post.type}</span>
+                            {post.type === "ASSIGNMENT" && (
+                              <span className="flex flex-wrap items-center gap-x-10 gap-y-2 whitespace-nowrap text-base font-bold tracking-wide text-[#e8f2ed] md:gap-x-14">
+                                {/* <span>Submission:</span>
+                                <span>Date:- {submission.date}</span>
+                                <span>Time:- {submission.time}</span> */}
+                              </span>
+                            )}
+                          </div>
                         </button>
-                      ))}
-                    </div>
-                  )}
-
-                {!isTeacher && post.type === "ASSIGNMENT" && (
-                  <form
-                    onSubmit={(e) => handleSubmitAssignment(e, post._id)}
-                    className="mt-3 rounded border border-white/10 bg-[#0f1613d9] p-3"
-                  >
-                    <input
-                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                      placeholder="Submission link (optional)"
-                      value={submissionForm.link}
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          link: e.target.value,
-                        }))
-                      }
-                    />
-                    <textarea
-                      className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                      placeholder="Notes/text (optional)"
-                      value={submissionForm.text}
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          text: e.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      className="mb-2 block w-full text-sm"
-                      type="file"
-                      multiple
-                      onChange={(e) =>
-                        setSubmissionForm((prev) => ({
-                          ...prev,
-                          files: Array.from(e.target.files || []),
-                        }))
-                      }
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(
-                          `/classrooms/${selectedClassroomId}/posts/${post._id}`,
-                        )
-                      }
-                      className="group w-full rounded border border-[#2ff5a838] bg-[#10201899] px-3 py-3 text-left transition hover:border-[#2ff5a866]"
-                    >
-                      <div className="flex items-center gap-4 text-sm leading-6">
-                        <span className="cursor-pointer font-semibold text-[#e8f2ed] underline-offset-2 transition group-hover:text-[#2ff5a8] group-hover:underline">
-                          {post.title}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-6 text-sm text-[#bcd2c9]">
-                        <span>{post.type}</span>
-                        {post.type === "ASSIGNMENT" && (
-                          <span className="flex flex-wrap items-center gap-x-10 gap-y-2 whitespace-nowrap text-base font-bold tracking-wide text-[#e8f2ed] md:gap-x-14">
-                            <span>Submission:</span>
-                            <span>Date:- {submission.date}</span>
-                            <span>Time:- {submission.time}</span>
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                      );
-                    })()}
+                      </form>
+                    )}
                   </>
+                ) : (
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{post.title}</p>
+                      <p className="text-xs text-[#bcd2c9]">{post.type}</p>
+                    </div>
+                    <button
+                      className="rounded border border-white/20 px-3 py-1 text-xs"
+                      onClick={() => setSelectedPostId(post._id)}
+                    >
+                      View
+                    </button>
+                  </div>
+                )}
+
+                {posts.length === 0 && (
+                  <p className="text-sm text-[#bcd2c9]">
+                    No posts in this classroom yet.
+                  </p>
                 )}
               </div>
             ))}
-
-            {posts.length === 0 && (
-              <p className="text-sm text-[#bcd2c9]">
-                No posts in this classroom yet.
-              </p>
-            )}
-          </div>
+            </div>
         </section>
       </div>
 
