@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../config/Api';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import api from "../config/Api";
 
 const AuthContext = createContext();
 
@@ -11,12 +11,24 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
+    const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+
+      api.auth
+        .getMe()
+        .then((response) => {
+          if (response?.user) {
+            localStorage.setItem("user", JSON.stringify(response.user));
+            setUser(response.user);
+          }
+        })
+        .catch(() => {
+          // Keep local session if refresh call fails.
+        });
     }
     setLoading(false);
   }, []);
@@ -29,9 +41,9 @@ export const AuthProvider = ({ children }) => {
         setError(response.error);
         return false;
       }
-      
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
       setToken(response.token);
       setUser(response.user);
       return true;
@@ -49,9 +61,9 @@ export const AuthProvider = ({ children }) => {
         setError(response.error);
         return false;
       }
-      
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
       setToken(response.token);
       setUser(response.user);
       return true;
@@ -61,39 +73,59 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const forgotPassword = async (email, newPassword) => {
+  const registerTeacher = async (
+    email,
+    password,
+    name,
+    department,
+    monthlyFee = 99,
+  ) => {
     setError(null);
     try {
-      const response = await api.auth.forgotPassword(email, newPassword);
+      const response = await api.auth.registerTeacher(
+        email,
+        password,
+        name,
+        department,
+        monthlyFee,
+      );
       if (response.error) {
         setError(response.error);
-        return { success: false, message: response.error };
+        return false;
       }
-      return { success: true, message: response.message || 'Password reset successful' };
+
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      setToken(response.token);
+      setUser(response.user);
+      return true;
     } catch (err) {
-      const message = err.message || 'Password reset failed';
-      setError(message);
-      return { success: false, message };
+      setError(err.message);
+      return false;
     }
   };
 
-  const updateProfilePicture = async (profilePicture) => {
+  const renewSubscription = async () => {
     setError(null);
     try {
-      const response = await api.auth.updateProfilePicture(profilePicture);
+      const response = await api.auth.renewSubscription();
       if (response.error) {
         setError(response.error);
         return { success: false, message: response.error };
       }
 
-      if (response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-        setUser(response.user);
+      const meResponse = await api.auth.getMe();
+      if (meResponse?.user) {
+        localStorage.setItem("user", JSON.stringify(meResponse.user));
+        setUser(meResponse.user);
       }
 
-      return { success: true, message: response.message || 'Profile picture updated' };
+      return {
+        success: true,
+        message: response.message || "Subscription renewed successfully",
+      };
     } catch (err) {
-      const message = err.message || 'Failed to update profile picture';
+      const message = err.message || "Failed to renew subscription";
       setError(message);
       return { success: false, message };
     }
@@ -112,27 +144,23 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     register,
+    registerTeacher,
     login,
-    forgotPassword,
-    updateProfilePicture,
+    renewSubscription,
     logout,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'HOD',
-    isProfessor: user?.role === 'PROFESSOR',
-    isStudent: user?.role === 'STUDENT',
+    isAdmin: user?.role === "HOD",
+    isProfessor: user?.role === "PROFESSOR",
+    isStudent: user?.role === "STUDENT",
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };

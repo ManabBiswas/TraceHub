@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { Menu, X, LogOut, Link as LinkIcon } from 'lucide-react';
+import React, { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { Menu, X, LogOut, Link as LinkIcon } from "lucide-react";
 
 const Navigation = () => {
   const { isAuthenticated, logout, user, isProfessor, isAdmin } = useAuth();
@@ -11,7 +11,7 @@ const Navigation = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
     setMenuOpen(false);
   };
 
@@ -19,8 +19,8 @@ const Navigation = () => {
   const navLinkClass = (active) =>
     `rounded-full px-4 py-2 text-sm font-medium transition ${
       active
-        ? 'bg-[#2ff5a8] text-[#142019]'
-        : 'text-emerald-50 hover:bg-white/15 hover:text-white'
+        ? "bg-[#2ff5a8] text-[#142019]"
+        : "text-emerald-50 hover:bg-white/15 hover:text-white"
     }`;
 
   if (!isAuthenticated) {
@@ -31,10 +31,24 @@ const Navigation = () => {
             <Link to="/">TraceHub</Link>
           </div>
           <div className="ml-auto flex w-full flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-[#0f1613d9] p-1 md:w-auto md:rounded-full">
-            <Link to="/" className={navLinkClass(isActive('/'))}>Home</Link>
-            <Link to="/dashboard" className={navLinkClass(isActive('/dashboard'))}>Dashboard</Link>
-            <Link to="/resources" className={navLinkClass(isActive('/resources'))}>Resources</Link>
-            <Link to="/profile" className={navLinkClass(isActive('/profile'))}>Profile</Link>
+            <Link to="/" className={navLinkClass(isActive("/"))}>
+              Home
+            </Link>
+            <Link
+              to="/dashboard"
+              className={navLinkClass(isActive("/dashboard"))}
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/resources"
+              className={navLinkClass(isActive("/resources"))}
+            >
+              Resources
+            </Link>
+            <Link to="/profile" className={navLinkClass(isActive("/profile"))}>
+              Profile
+            </Link>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Link
@@ -58,57 +72,70 @@ const Navigation = () => {
   return (
     <nav className="sticky top-0 z-50 border-b border-[#2ff5a833] bg-[#1f2925]/95 px-4 py-4 shadow-sm backdrop-blur md:px-8">
       <div className="mx-auto flex w-full max-w-360 flex-wrap items-center justify-between gap-3">
-        <Link to="/dashboard" className="flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-100">
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-100"
+        >
           <LinkIcon size={24} />
           TraceHub
         </Link>
 
-        <button 
+        <button
           className="inline-flex items-center justify-center rounded-md p-2 text-emerald-50 transition hover:bg-white/10 md:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
         >
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
-        <div className={`${menuOpen ? 'flex' : 'hidden'} w-full flex-col gap-4 rounded-2xl border border-white/10 bg-[#1f2925] p-4 md:flex md:w-auto md:flex-row md:items-center md:gap-6 md:border-none md:bg-transparent md:p-0`}>
+        <div
+          className={`${menuOpen ? "flex" : "hidden"} w-full flex-col gap-4 rounded-2xl border border-white/10 bg-[#1f2925] p-4 md:flex md:w-auto md:flex-row md:items-center md:gap-6 md:border-none md:bg-transparent md:p-0`}
+        >
           <div className="flex w-full flex-col gap-2 rounded-2xl border border-white/10 bg-[#0f1613d9] p-1 md:w-auto md:flex-row md:items-center md:rounded-full">
-            <Link 
-              to="/" 
-              className={navLinkClass(isActive('/'))}
+            <Link
+              to="/"
+              className={navLinkClass(isActive("/"))}
               onClick={() => setMenuOpen(false)}
             >
               Home
             </Link>
 
-            <Link 
-              to="/dashboard" 
-              className={navLinkClass(isActive('/dashboard'))}
+            <Link
+              to="/dashboard"
+              className={navLinkClass(isActive("/dashboard"))}
               onClick={() => setMenuOpen(false)}
             >
               Dashboard
             </Link>
-            
-            <Link 
-              to="/resources" 
-              className={navLinkClass(isActive('/resources'))}
+
+            <Link
+              to="/resources"
+              className={navLinkClass(isActive("/resources"))}
               onClick={() => setMenuOpen(false)}
             >
               Resources
             </Link>
 
+            <Link
+              to="/classrooms"
+              className={navLinkClass(isActive("/classrooms"))}
+              onClick={() => setMenuOpen(false)}
+            >
+              Classrooms
+            </Link>
+
             {(isProfessor || isAdmin) && (
               <>
-                <Link 
-                  to="/upload" 
-                  className={navLinkClass(isActive('/upload'))}
+                <Link
+                  to="/upload"
+                  className={navLinkClass(isActive("/upload"))}
                   onClick={() => setMenuOpen(false)}
                 >
                   Upload
                 </Link>
 
-                <Link 
-                  to="/pending" 
-                  className={navLinkClass(isActive('/pending'))}
+                <Link
+                  to="/pending"
+                  className={navLinkClass(isActive("/pending"))}
                   onClick={() => setMenuOpen(false)}
                 >
                   Pending
@@ -116,9 +143,9 @@ const Navigation = () => {
               </>
             )}
 
-            <Link 
-              to="/profile" 
-              className={navLinkClass(isActive('/profile'))}
+            <Link
+              to="/profile"
+              className={navLinkClass(isActive("/profile"))}
               onClick={() => setMenuOpen(false)}
             >
               Profile
@@ -127,8 +154,12 @@ const Navigation = () => {
 
           <div className="ml-auto flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center md:gap-4">
             <span className="flex flex-col md:items-end">
-              <span className="text-sm font-semibold text-slate-100">{user?.name}</span>
-              <span className="text-xs capitalize text-slate-400">{user?.role}</span>
+              <span className="text-sm font-semibold text-slate-100">
+                {user?.name}
+              </span>
+              <span className="text-xs capitalize text-slate-400">
+                {user?.role}
+              </span>
             </span>
             <button
               onClick={handleLogout}
