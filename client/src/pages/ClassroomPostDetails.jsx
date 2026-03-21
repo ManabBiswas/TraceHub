@@ -65,11 +65,14 @@ const ClassroomPostDetails = () => {
     setError("");
     setMessage("");
 
-    const response = await api.classrooms.submitAssignment(classroomId, post._id, {
-      link: submissionForm.link,
-      text: submissionForm.text,
-      files: submissionForm.files,
+    const formData = new FormData();
+    formData.append("link", submissionForm.link);
+    formData.append("text", submissionForm.text);
+    submissionForm.files.forEach((file) => {
+      formData.append("files", file);
     });
+
+    const response = await api.classrooms.submitAssignment(classroomId, post._id, formData);
 
     if (response.error) {
       setError(response.error);
