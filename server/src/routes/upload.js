@@ -132,6 +132,26 @@ router.post(
         aiFlashcards: aiData.flashcards || [],
         dualityUrl,
         algorandTxId,
+        versionNumber: 1,
+        versionHistory: [
+          {
+            versionNumber: 1,
+            action: "CREATE",
+            title,
+            githubUrl: "",
+            status: "approved",
+            aiSummary: aiData.summary || "",
+            aiTags: aiData.tags || [],
+            techStack: [],
+            originalityScore: null,
+            dualityUrl: dualityUrl || "",
+            algorandTxId: algorandTxId || "",
+            updatedByName: user.name,
+            updatedByRole: user.role,
+            updatedByUserId: user._id,
+            updatedAt: new Date(),
+          },
+        ],
       });
 
       await resource.save();
@@ -200,6 +220,25 @@ router.post("/github", upload.none(), async (req, res) => {
       aiTags: aiData.tags || [],
       techStack: aiData.techStack || [],
       originalityScore: aiData.originalityScore || null,
+      versionNumber: 1,
+      versionHistory: [
+        {
+          versionNumber: 1,
+          action: "CREATE",
+          title,
+          githubUrl,
+          status: "pending",
+          aiSummary: aiData.summary || "",
+          aiTags: aiData.tags || [],
+          techStack: aiData.techStack || [],
+          originalityScore: aiData.originalityScore || null,
+          dualityUrl: "",
+          algorandTxId: "",
+          updatedByName: studentName,
+          updatedByRole: "STUDENT",
+          updatedAt: new Date(),
+        },
+      ],
       // dualityUrl and algorandTxId are null until approved
     });
 

@@ -1,5 +1,38 @@
 import mongoose from "mongoose";
 
+const ResourceVersionSchema = new mongoose.Schema(
+  {
+    versionNumber: { type: Number, required: true, min: 1 },
+    action: {
+      type: String,
+      enum: ["CREATE", "UPDATE", "APPROVE"],
+      required: true,
+    },
+    title: { type: String, default: "" },
+    githubUrl: { type: String, default: "" },
+    status: {
+      type: String,
+      enum: ["pending", "approved"],
+      default: "pending",
+    },
+    aiSummary: { type: String, default: "" },
+    aiTags: [{ type: String }],
+    techStack: [{ type: String }],
+    originalityScore: { type: Number, default: null },
+    dualityUrl: { type: String, default: "" },
+    algorandTxId: { type: String, default: "" },
+    updatedByName: { type: String, default: "System" },
+    updatedByRole: { type: String, default: "SYSTEM" },
+    updatedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const ResourceSchema = new mongoose.Schema({
   // Core fields
   title: { type: String, required: true },
@@ -48,6 +81,17 @@ const ResourceSchema = new mongoose.Schema({
   dualityUrl: { type: String }, // Permanent file URL
   algorandTxId: { type: String }, // Testnet transaction ID (null until approved)
 
+  // Versioning fields (every create/update/approval appends an immutable snapshot)
+  versionNumber: {
+    type: Number,
+    min: 1,
+    default: 1,
+  },
+  versionHistory: {
+    type: [ResourceVersionSchema],
+    default: [],
+  },
+
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -55,5 +99,6 @@ const ResourceSchema = new mongoose.Schema({
 ResourceSchema.index({ userId: 1, createdAt: -1 });
 ResourceSchema.index({ classroomId: 1, createdAt: -1 });
 ResourceSchema.index({ status: 1, createdAt: -1 }); // For pending queue
+ResourceSchema.index({ classroomId: 1, versionNumber: -1 });
 
 export default mongoose.model("Resource", ResourceSchema);

@@ -1,6 +1,6 @@
 import express from "express";
 import { uploadToDuality } from "../services/duality.service.js";
-import { mintProofOfPublication } from "../services/algorand.service.js";
+import { mintVersionProof } from "../services/algorand.service.js";
 import Resource from "../models/Resource.js";
 
 const router = express.Router();
@@ -11,12 +11,13 @@ const router = express.Router();
  */
 router.get("/", async (req, res) => {
   try {
-    const pending = await Resource.find({ status: "pending" })
-      .sort({ createdAt: -1 });
-    
+    const pending = await Resource.find({ status: "pending" }).sort({
+      createdAt: -1,
+    });
+
     res.json({
       count: pending.length,
-      resources: pending
+      resources: pending,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -36,7 +37,7 @@ router.post("/approve/:resourceId", async (req, res) => {
     // Simple passcode check (hardcoded for MVP)
     if (passcode !== process.env.PROFESSOR_PASSCODE) {
       return res.status(403).json({
-        error: "Invalid passcode. Contact an organizer if you're a professor."
+        error: "Invalid passcode. Contact an organizer if you're a professor.",
       });
     }
 
@@ -54,10 +55,10 @@ router.post("/approve/:resourceId", async (req, res) => {
     let dualityUrl = null;
     try {
       // Create a buffer from the GitHub repo name or title
-      const fileName = resource.githubUrl 
+      const fileName = resource.githubUrl
         ? resource.githubUrl.split("/").pop() + ".md"
         : resource.title + ".txt";
-      
+
       // MVP Design: Store metadata reference file, not full GitHub archive
       // Full repo archival is a v2 feature. This demonstrates the mint workflow.
       const content = `TraceHub Archive Reference
@@ -78,10 +79,20 @@ GitHub URL: ${resource.githubUrl}
     // Step 2: Mint Algorand transaction
     let algorandTxId = null;
     try {
-      algorandTxId = await mintProofOfPublication(
-        dualityUrl,
-        resource.uploaderName
-      );
+      const nextVersion = Number(resource.versionNumber || 1) + 1;
+      algorandTxId = await mintVersionProof({
+        entityType: "RESOURCE",
+        entityId: String(resource._id),
+        versionNumber: nextVersion,
+        action: "APPROVE",
+        actor: "Professor (Passcode)",
+        referenceUrl: dualityUrl,
+        payload: {
+          title: resource.title,
+          githubUrl: resource.githubUrl || "",
+          status: "approved",
+        },
+      });
     } catch (e) {
       console.error("Algorand mint failed:", e.message);
       algorandTxId = process.env.DEMO_FALLBACK_TXID || null;
@@ -93,13 +104,51 @@ GitHub URL: ${resource.githubUrl}
     resource.approvedBy = "Professor (Passcode)";
     resource.dualityUrl = dualityUrl;
     resource.algorandTxId = algorandTxId;
+    resource.versionHistory = resource.versionHistory || [];
+    if (resource.versionHistory.length === 0) {
+      resource.versionHistory.push({
+        versionNumber: 1,
+        action: "CREATE",
+        title: resource.title,
+        githubUrl: resource.githubUrl || "",
+        status: "pending",
+        aiSummary: resource.aiSummary || "",
+        aiTags: resource.aiTags || [],
+        techStack: resource.techStack || [],
+        originalityScore: resource.originalityScore,
+        dualityUrl: resource.dualityUrl || "",
+        algorandTxId: resource.algorandTxId || "",
+        updatedByName: resource.uploaderName || "Student",
+        updatedByRole: "STUDENT",
+        updatedAt: resource.createdAt || new Date(),
+      });
+      resource.versionNumber = 1;
+    }
+
+    resource.versionNumber = Number(resource.versionNumber || 1) + 1;
+    resource.versionHistory.push({
+      versionNumber: resource.versionNumber,
+      action: "APPROVE",
+      title: resource.title,
+      githubUrl: resource.githubUrl || "",
+      status: "approved",
+      aiSummary: resource.aiSummary || "",
+      aiTags: resource.aiTags || [],
+      techStack: resource.techStack || [],
+      originalityScore: resource.originalityScore,
+      dualityUrl: dualityUrl || "",
+      algorandTxId: algorandTxId || "",
+      updatedByName: "Professor (Passcode)",
+      updatedByRole: "PROFESSOR",
+      updatedAt: new Date(),
+    });
 
     await resource.save();
 
     res.json({
       message: "Resource approved and verified on blockchain!",
       resource,
-      blockchainTxId: algorandTxId
+      blockchainTxId: algorandTxId,
     });
   } catch (error) {
     console.error("Approval error:", error);
@@ -130,7 +179,7 @@ router.delete("/:resourceId", async (req, res) => {
     // Only allow deleting pending resources
     if (resource.status !== "pending") {
       return res.status(400).json({
-        error: "Can only reject pending resources"
+        error: "Can only reject pending resources",
       });
     }
 
@@ -138,7 +187,7 @@ router.delete("/:resourceId", async (req, res) => {
 
     res.json({
       message: "Resource rejected and deleted",
-      deletedId: resourceId
+      deletedId: resourceId,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

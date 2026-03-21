@@ -7,11 +7,14 @@ import {
   joinClassroom,
   createPost,
   fetchClassroomPosts,
+  fetchPostHistory,
   downloadPostAttachment,
   updatePost,
   submitLink,
   submitAssignment,
+  fetchMySubmission,
   fetchPostSubmissions,
+  fetchSubmissionHistory,
   downloadSubmissionFile,
   updateSubmission,
 } from "../controllers/classrooms.controller.js";
@@ -29,6 +32,11 @@ router.post("/join", authMiddleware, joinClassroom);
 
 router.get("/:classroomId/posts", authMiddleware, fetchClassroomPosts);
 router.get(
+  "/:classroomId/posts/:postId/history",
+  authMiddleware,
+  fetchPostHistory,
+);
+router.get(
   "/:classroomId/posts/:postId/attachments/:attachmentIndex",
   authMiddleware,
   downloadPostAttachment,
@@ -44,6 +52,7 @@ router.patch(
   "/:classroomId/posts/:postId",
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
+  submissionUpload.array("attachments", 5),
   updatePost,
 );
 
@@ -61,10 +70,21 @@ router.post(
   submitAssignment,
 );
 router.get(
+  "/:classroomId/posts/:postId/submissions/me",
+  authMiddleware,
+  roleGuard("STUDENT"),
+  fetchMySubmission,
+);
+router.get(
   "/:classroomId/posts/:postId/submissions",
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
   fetchPostSubmissions,
+);
+router.get(
+  "/:classroomId/posts/:postId/submissions/:submissionId/history",
+  authMiddleware,
+  fetchSubmissionHistory,
 );
 router.get(
   "/:classroomId/posts/:postId/submissions/:submissionId/files/:fileIndex",

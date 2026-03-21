@@ -1,5 +1,57 @@
 import mongoose from "mongoose";
 
+const VersionAttachmentSchema = new mongoose.Schema(
+  {
+    title: { type: String, default: "" },
+    fileName: { type: String, default: "" },
+    mimeType: { type: String, default: "" },
+    size: { type: Number, default: 0, min: 0 },
+    hasBinaryData: { type: Boolean, default: false },
+    url: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
+const ClassPostVersionSchema = new mongoose.Schema(
+  {
+    versionNumber: { type: Number, required: true, min: 1 },
+    action: {
+      type: String,
+      enum: ["CREATE", "UPDATE"],
+      required: true,
+    },
+    title: { type: String, default: "" },
+    body: { type: String, default: "" },
+    type: {
+      type: String,
+      enum: ["ANNOUNCEMENT", "ASSIGNMENT"],
+      default: "ANNOUNCEMENT",
+    },
+    dueDate: { type: Date, default: null },
+    points: { type: Number, default: null },
+    allowStudentSubmissions: { type: Boolean, default: true },
+    allowedSubmissionTypes: {
+      type: [String],
+      enum: ["LINK", "FILE"],
+      default: ["LINK", "FILE"],
+    },
+    attachments: {
+      type: [VersionAttachmentSchema],
+      default: [],
+    },
+    updatedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    updatedByName: { type: String, default: "" },
+    updatedByRole: { type: String, default: "" },
+    updatedAt: { type: Date, default: Date.now },
+    algorandTxId: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
 const PostAttachmentSchema = new mongoose.Schema(
   {
     title: {
@@ -82,6 +134,15 @@ const ClassPostSchema = new mongoose.Schema(
     },
     attachments: {
       type: [PostAttachmentSchema],
+      default: [],
+    },
+    versionNumber: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+    versionHistory: {
+      type: [ClassPostVersionSchema],
       default: [],
     },
   },

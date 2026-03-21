@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../config/Api";
 import { useAuth } from "../context/AuthContext";
 
 const Classrooms = () => {
+  const navigate = useNavigate();
   const { user, isProfessor, isAdmin } = useAuth();
   const [classrooms, setClassrooms] = useState([]);
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
@@ -734,14 +736,26 @@ const Classrooms = () => {
                     <p className="font-semibold">{post.title}</p>
                     <p className="text-xs text-[#bcd2c9]">{post.type}</p>
                   </div>
-                  {isTeacher && (
+                  <div className="flex gap-2">
                     <button
-                      className="rounded border border-white/20 px-3 py-1 text-xs"
-                      onClick={() => setSelectedPostId(post._id)}
+                      className="rounded border border-[#2ff5a8] px-3 py-1 text-xs"
+                      onClick={() =>
+                        navigate(
+                          `/classrooms/${selectedClassroomId}/posts/${post._id}`,
+                        )
+                      }
                     >
-                      Manage Submissions
+                      Open Details
                     </button>
-                  )}
+                    {isTeacher && (
+                      <button
+                        className="rounded border border-white/20 px-3 py-1 text-xs"
+                        onClick={() => setSelectedPostId(post._id)}
+                      >
+                        Manage Submissions
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <p className="text-sm text-[#d8ebe3]">{post.body}</p>

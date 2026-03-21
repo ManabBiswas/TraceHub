@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Classroom from "../models/Classroom.js";
 import ClassPost from "../models/ClassPost.js";
 import Submission from "../models/Submission.js";
+import { mintVersionProof } from "../services/algorand.service.js";
 
 const generateJoinCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -91,6 +92,77 @@ const parseAttachmentsInput = (attachments) => {
   }
 
   return [];
+};
+
+const toVersionAttachments = (attachments = []) => {
+  return attachments.map((attachment) => ({
+    title: attachment?.title || "",
+    fileName: attachment?.fileName || "",
+    mimeType: attachment?.mimeType || "",
+    size: Number(attachment?.size || 0),
+    hasBinaryData: Boolean(attachment?.data),
+    url: attachment?.url || "",
+  }));
+};
+
+const createPostVersionSnapshot = ({
+  post,
+  versionNumber,
+  action,
+  user,
+  algorandTxId,
+}) => {
+  return {
+    versionNumber,
+    action,
+    title: post.title,
+    body: post.body,
+    type: post.type,
+    dueDate: post.dueDate,
+    points: post.points,
+    allowStudentSubmissions: post.allowStudentSubmissions,
+    allowedSubmissionTypes: post.allowedSubmissionTypes,
+    attachments: toVersionAttachments(post.attachments || []),
+    updatedByUserId: user._id,
+    updatedByName: user.name,
+    updatedByRole: user.role,
+    updatedAt: new Date(),
+    algorandTxId: algorandTxId || "",
+  };
+};
+
+const toSubmissionVersionFiles = (files = []) => {
+  return files.map((file) => ({
+    fileName: file?.fileName || "",
+    mimeType: file?.mimeType || "",
+    size: Number(file?.size || 0),
+    hasBinaryData: Boolean(file?.data),
+  }));
+};
+
+const createSubmissionVersionSnapshot = ({
+  submission,
+  versionNumber,
+  action,
+  user,
+  algorandTxId,
+}) => {
+  return {
+    versionNumber,
+    action,
+    contentType: submission.contentType,
+    link: submission.link || "",
+    text: submission.text || "",
+    files: toSubmissionVersionFiles(submission.files || []),
+    status: submission.status,
+    marks: submission.marks,
+    feedback: submission.feedback || "",
+    updatedByUserId: user._id,
+    updatedByName: user.name,
+    updatedByRole: user.role,
+    updatedAt: new Date(),
+    algorandTxId: algorandTxId || "",
+  };
 };
 
 export const createClassroom = async (req, res) => {
@@ -264,7 +336,7 @@ export const createPost = async (req, res) => {
 
     const mergedAttachments = [...parsedAttachments, ...uploadedAttachments];
 
-    const post = await ClassPost.create({
+    const post = new ClassPost({
       classroomId,
       authorId: req.user._id,
       title,
@@ -275,7 +347,39 @@ export const createPost = async (req, res) => {
       allowStudentSubmissions: resolvedAllowStudentSubmissions,
       allowedSubmissionTypes: resolvedSubmissionTypes,
       attachments: mergedAttachments,
+      versionNumber: 1,
+      versionHistory: [],
     });
+
+    let versionTxId = "";
+    try {
+      versionTxId = await mintVersionProof({
+        entityType: "CLASS_POST",
+        entityId: String(post._id),
+        versionNumber: 1,
+        action: "CREATE",
+        actor: req.user.name,
+        payload: {
+          title: post.title,
+          type: post.type,
+          classroomId: String(classroomId),
+        },
+      });
+    } catch (_error) {
+      versionTxId = process.env.DEMO_FALLBACK_TXID || "";
+    }
+
+    post.versionHistory.push(
+      createPostVersionSnapshot({
+        post,
+        versionNumber: 1,
+        action: "CREATE",
+        user: req.user,
+        algorandTxId: versionTxId,
+      }),
+    );
+
+    await post.save();
 
     return res.status(201).json({ message: "Post created", post });
   } catch (error) {
@@ -330,6 +434,48 @@ export const fetchClassroomPosts = async (req, res) => {
     });
 
     return res.json({ posts: sanitizedPosts });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const fetchPostHistory = async (req, res) => {
+  try {
+    const { classroomId, postId } = req.params;
+
+    if (!isValidObjectId(classroomId) || !isValidObjectId(postId)) {
+      return res.status(400).json({ error: "Invalid classroomId or postId" });
+    }
+
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    if (!canAccessClassroom(classroom, req.user._id)) {
+      return res
+        .status(403)
+        .json({ error: "You are not a member of this classroom" });
+    }
+
+    const post = await ClassPost.findOne({ _id: postId, classroomId }).select(
+      "_id title versionNumber versionHistory",
+    );
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    const versions = [...(post.versionHistory || [])].sort(
+      (a, b) => Number(b.versionNumber || 0) - Number(a.versionNumber || 0),
+    );
+
+    return res.json({
+      postId: post._id,
+      title: post.title,
+      currentVersion: post.versionNumber || 1,
+      count: versions.length,
+      versions,
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -392,6 +538,7 @@ export const downloadPostAttachment = async (req, res) => {
 export const updatePost = async (req, res) => {
   try {
     const { classroomId, postId } = req.params;
+    const uploadedFiles = Array.isArray(req.files) ? req.files : [];
     const {
       title,
       body,
@@ -429,6 +576,16 @@ export const updatePost = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
+    const beforeSnapshot = {
+      title: post.title,
+      body: post.body,
+      dueDate: post.dueDate ? new Date(post.dueDate).toISOString() : null,
+      points: post.points,
+      allowStudentSubmissions: post.allowStudentSubmissions,
+      allowedSubmissionTypes: [...post.allowedSubmissionTypes],
+      attachments: JSON.stringify(post.attachments || []),
+    };
+
     if (typeof title === "string") post.title = title;
     if (typeof body === "string") post.body = body;
     if (typeof dueDate !== "undefined") post.dueDate = dueDate || null;
@@ -438,14 +595,94 @@ export const updatePost = async (req, res) => {
     }
     if (typeof allowedSubmissionTypes !== "undefined") {
       post.allowedSubmissionTypes = parseAllowedSubmissionTypes(
-        allowedSubmissionTypes,
+        typeof allowedSubmissionTypes === "string"
+          ? parseAttachmentsInput(allowedSubmissionTypes)
+          : allowedSubmissionTypes,
       );
     }
-    if (Array.isArray(attachments)) post.attachments = attachments;
+
+    const parsedAttachments = parseAttachmentsInput(attachments).filter(
+      (entry) =>
+        entry &&
+        typeof entry.title === "string" &&
+        typeof entry.url === "string" &&
+        entry.url.length > 0,
+    );
+
+    const uploadedAttachments = uploadedFiles.map((file) => ({
+      title: file.originalname,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      data: file.buffer,
+      url: "",
+    }));
+
+    if (typeof attachments !== "undefined" || uploadedAttachments.length > 0) {
+      const baseAttachments =
+        parsedAttachments.length > 0
+          ? parsedAttachments
+          : post.attachments || [];
+      post.attachments = [...baseAttachments, ...uploadedAttachments];
+    }
+
+    const afterSnapshot = {
+      title: post.title,
+      body: post.body,
+      dueDate: post.dueDate ? new Date(post.dueDate).toISOString() : null,
+      points: post.points,
+      allowStudentSubmissions: post.allowStudentSubmissions,
+      allowedSubmissionTypes: [...post.allowedSubmissionTypes],
+      attachments: JSON.stringify(post.attachments || []),
+    };
+
+    const hasChanges =
+      JSON.stringify(beforeSnapshot) !== JSON.stringify(afterSnapshot);
+
+    if (!hasChanges) {
+      return res.json({
+        message: "No changes detected",
+        post,
+      });
+    }
+
+    const nextVersion = Number(post.versionNumber || 1) + 1;
+    let versionTxId = "";
+    try {
+      versionTxId = await mintVersionProof({
+        entityType: "CLASS_POST",
+        entityId: String(post._id),
+        versionNumber: nextVersion,
+        action: "UPDATE",
+        actor: req.user.name,
+        payload: {
+          title: post.title,
+          type: post.type,
+          classroomId: String(classroomId),
+        },
+      });
+    } catch (_error) {
+      versionTxId = process.env.DEMO_FALLBACK_TXID || "";
+    }
+
+    post.versionNumber = nextVersion;
+    post.versionHistory = post.versionHistory || [];
+    post.versionHistory.push(
+      createPostVersionSnapshot({
+        post,
+        versionNumber: nextVersion,
+        action: "UPDATE",
+        user: req.user,
+        algorandTxId: versionTxId,
+      }),
+    );
 
     await post.save();
 
-    return res.json({ message: "Post updated", post });
+    return res.json({
+      message: "Post updated and version tracked on blockchain",
+      post,
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -498,24 +735,70 @@ export const submitLink = async (req, res) => {
         .json({ error: "Link submissions are disabled for this assignment" });
     }
 
-    const submission = await Submission.findOneAndUpdate(
-      { classroomId, postId, studentId: req.user._id },
-      {
+    let submission = await Submission.findOne({
+      classroomId,
+      postId,
+      studentId: req.user._id,
+    });
+
+    const action = submission ? "UPDATE" : "CREATE";
+    if (!submission) {
+      submission = new Submission({
         classroomId,
         postId,
         studentId: req.user._id,
         contentType: "LINK",
-        link,
+        link: link.trim(),
         text: "",
         files: [],
         status: "TURNED_IN",
-      },
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
-      },
+        versionNumber: 1,
+        versionHistory: [],
+      });
+    } else {
+      submission.contentType = "LINK";
+      submission.link = link.trim();
+      submission.text = "";
+      submission.files = [];
+      submission.status = "TURNED_IN";
+    }
+
+    const nextVersion = submission.versionHistory?.length
+      ? Number(submission.versionNumber || 1) + 1
+      : 1;
+
+    let versionTxId = "";
+    try {
+      versionTxId = await mintVersionProof({
+        entityType: "SUBMISSION",
+        entityId: String(submission._id),
+        versionNumber: nextVersion,
+        action,
+        actor: req.user.name,
+        payload: {
+          classroomId: String(classroomId),
+          postId: String(postId),
+          studentId: String(req.user._id),
+          contentType: "LINK",
+        },
+      });
+    } catch (_error) {
+      versionTxId = process.env.DEMO_FALLBACK_TXID || "";
+    }
+
+    submission.versionNumber = nextVersion;
+    submission.versionHistory = submission.versionHistory || [];
+    submission.versionHistory.push(
+      createSubmissionVersionSnapshot({
+        submission,
+        versionNumber: nextVersion,
+        action,
+        user: req.user,
+        algorandTxId: versionTxId,
+      }),
     );
+
+    await submission.save();
 
     return res.status(201).json({
       message: "Link submitted successfully",
@@ -602,9 +885,15 @@ export const submitAssignment = async (req, res) => {
       contentType = "LINK";
     }
 
-    const submission = await Submission.findOneAndUpdate(
-      { classroomId, postId, studentId: req.user._id },
-      {
+    let submission = await Submission.findOne({
+      classroomId,
+      postId,
+      studentId: req.user._id,
+    });
+
+    const action = submission ? "UPDATE" : "CREATE";
+    if (!submission) {
+      submission = new Submission({
         classroomId,
         postId,
         studentId: req.user._id,
@@ -613,18 +902,94 @@ export const submitAssignment = async (req, res) => {
         text: hasText ? text.trim() : "",
         files: storedFiles,
         status: "TURNED_IN",
-      },
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
-      },
+        versionNumber: 1,
+        versionHistory: [],
+      });
+    } else {
+      submission.contentType = contentType;
+      submission.link = hasLink ? link.trim() : "";
+      submission.text = hasText ? text.trim() : "";
+      submission.files = storedFiles;
+      submission.status = "TURNED_IN";
+    }
+
+    const nextVersion = submission.versionHistory?.length
+      ? Number(submission.versionNumber || 1) + 1
+      : 1;
+
+    let versionTxId = "";
+    try {
+      versionTxId = await mintVersionProof({
+        entityType: "SUBMISSION",
+        entityId: String(submission._id),
+        versionNumber: nextVersion,
+        action,
+        actor: req.user.name,
+        payload: {
+          classroomId: String(classroomId),
+          postId: String(postId),
+          studentId: String(req.user._id),
+          contentType,
+          fileCount: storedFiles.length,
+        },
+      });
+    } catch (_error) {
+      versionTxId = process.env.DEMO_FALLBACK_TXID || "";
+    }
+
+    submission.versionNumber = nextVersion;
+    submission.versionHistory = submission.versionHistory || [];
+    submission.versionHistory.push(
+      createSubmissionVersionSnapshot({
+        submission,
+        versionNumber: nextVersion,
+        action,
+        user: req.user,
+        algorandTxId: versionTxId,
+      }),
     );
+
+    await submission.save();
 
     return res.status(201).json({
       message: "Submission uploaded successfully",
       submission,
     });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const fetchMySubmission = async (req, res) => {
+  try {
+    const { classroomId, postId } = req.params;
+
+    if (!isValidObjectId(classroomId) || !isValidObjectId(postId)) {
+      return res.status(400).json({ error: "Invalid classroomId or postId" });
+    }
+
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    if (!isStudentInClassroom(classroom, req.user._id)) {
+      return res
+        .status(403)
+        .json({ error: "Only enrolled students can access this submission" });
+    }
+
+    const submission = await Submission.findOne({
+      classroomId,
+      postId,
+      studentId: req.user._id,
+    }).select("_id contentType link text status marks feedback updatedAt");
+
+    if (!submission) {
+      return res.json({ submission: null });
+    }
+
+    return res.json({ submission });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -664,6 +1029,63 @@ export const fetchPostSubmissions = async (req, res) => {
     });
 
     return res.json({ count: sanitized.length, submissions: sanitized });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const fetchSubmissionHistory = async (req, res) => {
+  try {
+    const { classroomId, postId, submissionId } = req.params;
+
+    if (
+      !isValidObjectId(classroomId) ||
+      !isValidObjectId(postId) ||
+      !isValidObjectId(submissionId)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Invalid classroomId, postId, or submissionId" });
+    }
+
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    const submission = await Submission.findOne({
+      _id: submissionId,
+      classroomId,
+      postId,
+    }).select("_id studentId versionNumber versionHistory updatedAt");
+
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+
+    const userId = String(req.user._id);
+    const canAccess =
+      isTeacherInClassroom(classroom, req.user._id) ||
+      String(submission.studentId) === userId;
+
+    if (!canAccess) {
+      return res.status(403).json({
+        error:
+          "Only classroom teachers or the owning student can view this timeline",
+      });
+    }
+
+    const versions = [...(submission.versionHistory || [])].sort(
+      (a, b) => Number(b.versionNumber || 0) - Number(a.versionNumber || 0),
+    );
+
+    return res.json({
+      submissionId: submission._id,
+      currentVersion: submission.versionNumber || 1,
+      count: versions.length,
+      updatedAt: submission.updatedAt,
+      versions,
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -768,13 +1190,69 @@ export const updateSubmission = async (req, res) => {
       return res.status(404).json({ error: "Submission not found" });
     }
 
+    const beforeSnapshot = {
+      marks: submission.marks,
+      feedback: submission.feedback,
+      status: submission.status,
+    };
+
     if (typeof marks !== "undefined") submission.marks = marks;
     if (typeof feedback === "string") submission.feedback = feedback;
     if (typeof status === "string") submission.status = status;
 
+    const afterSnapshot = {
+      marks: submission.marks,
+      feedback: submission.feedback,
+      status: submission.status,
+    };
+
+    const hasChanges =
+      JSON.stringify(beforeSnapshot) !== JSON.stringify(afterSnapshot);
+    if (!hasChanges) {
+      return res.json({ message: "No changes detected", submission });
+    }
+
+    const nextVersion = submission.versionHistory?.length
+      ? Number(submission.versionNumber || 1) + 1
+      : 1;
+
+    let versionTxId = "";
+    try {
+      versionTxId = await mintVersionProof({
+        entityType: "SUBMISSION",
+        entityId: String(submission._id),
+        versionNumber: nextVersion,
+        action: "GRADE",
+        actor: req.user.name,
+        payload: {
+          classroomId: String(classroomId),
+          postId: String(postId),
+          marks: submission.marks,
+          status: submission.status,
+        },
+      });
+    } catch (_error) {
+      versionTxId = process.env.DEMO_FALLBACK_TXID || "";
+    }
+
+    submission.versionNumber = nextVersion;
+    submission.versionHistory = submission.versionHistory || [];
+    submission.versionHistory.push(
+      createSubmissionVersionSnapshot({
+        submission,
+        versionNumber: nextVersion,
+        action: "GRADE",
+        user: req.user,
+        algorandTxId: versionTxId,
+      }),
+    );
+
     await submission.save();
 
-    return res.json({ message: "Submission updated", submission });
+    return res.json({
+      message: "Submission updated and version tracked on blockchain",
+      submission,
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

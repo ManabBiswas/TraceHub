@@ -1,59 +1,80 @@
 import algosdk from "algosdk";
 
-async function mintProofOfPublication(dualityUrl, uploaderName) {
+const generateFallbackTxId = () => {
+  return (
+    process.env.DEMO_FALLBACK_TXID ||
+    "DEMO_TX_" + Math.random().toString(36).substring(7).toUpperCase()
+  );
+};
+
+const getAlgodClient = () =>
+  new algosdk.Algodv2("", "https://testnet-api.algonode.cloud", 443);
+
+async function mintVersionProof({
+  entityType,
+  entityId,
+  versionNumber,
+  action,
+  actor,
+  referenceUrl = "",
+  payload = {},
+}) {
   try {
     if (!process.env.ALGORAND_ADMIN_MNEMONIC) {
-      console.warn(
-        "ALGORAND_ADMIN_MNEMONIC not set, using demo fallback TXID"
-      );
-      return (
-        process.env.DEMO_FALLBACK_TXID ||
-        "DEMO_TX_" + Math.random().toString(36).substring(7).toUpperCase()
-      );
+      console.warn("ALGORAND_ADMIN_MNEMONIC not set, using demo fallback TXID");
+      return generateFallbackTxId();
     }
 
-    const algodClient = new algosdk.Algodv2(
-      "",
-      "https://testnet-api.algonode.cloud",
-      443
+    const algodClient = getAlgodClient();
+    const account = algosdk.mnemonicToSecretKey(
+      process.env.ALGORAND_ADMIN_MNEMONIC,
     );
-
-    const mnemonic = process.env.ALGORAND_ADMIN_MNEMONIC;
-    const account = algosdk.mnemonicToSecretKey(mnemonic);
-
     const suggestedParams = await algodClient.getTransactionParams().do();
 
     const notePayload = JSON.stringify({
       app: "TraceHub",
-      dualityUrl,
-      uploader: uploaderName,
-      timestamp: new Date().toISOString()
+      event: "VERSION_SNAPSHOT",
+      entityType,
+      entityId,
+      versionNumber,
+      action,
+      actor,
+      referenceUrl,
+      payload,
+      timestamp: new Date().toISOString(),
     });
 
-    // algosdk v3 uses 'sender' and 'receiver' instead of 'from' and 'to'
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender: account.addr,      // v3: renamed from 'from'
-      receiver: account.addr,    // v3: renamed from 'to'
+      sender: account.addr,
+      receiver: account.addr,
       amount: 0,
       note: new TextEncoder().encode(notePayload),
-      suggestedParams
+      suggestedParams,
     });
 
-    // algosdk v3: use algosdk.signTransaction instead of txn.signTxn
     const signedTxn = algosdk.signTransaction(txn, account.sk);
     const { txid } = await algodClient.sendRawTransaction(signedTxn.blob).do();
 
-    // Wait for confirmation
     await algosdk.waitForConfirmation(algodClient, txid, 4);
-
-    return txid;  // v3: lowercase 'txid', not 'txId'
+    return txid;
   } catch (error) {
-    console.error("Algorand mint error:", error.message);
-    return (
-      process.env.DEMO_FALLBACK_TXID ||
-      "DEMO_TX_" + Math.random().toString(36).substring(7).toUpperCase()
-    );
+    console.error("Algorand version mint error:", error.message);
+    return generateFallbackTxId();
   }
 }
 
-export { mintProofOfPublication };
+async function mintProofOfPublication(dualityUrl, uploaderName) {
+  return mintVersionProof({
+    entityType: "RESOURCE",
+    entityId: "publication",
+    versionNumber: 1,
+    action: "CREATE",
+    actor: uploaderName,
+    referenceUrl: dualityUrl || "",
+    payload: {
+      dualityUrl: dualityUrl || "",
+    },
+  });
+}
+
+export { mintProofOfPublication, mintVersionProof };

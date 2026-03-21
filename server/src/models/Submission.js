@@ -1,5 +1,54 @@
 import mongoose from "mongoose";
 
+const SubmissionVersionFileSchema = new mongoose.Schema(
+  {
+    fileName: { type: String, default: "" },
+    mimeType: { type: String, default: "" },
+    size: { type: Number, default: 0, min: 0 },
+    hasBinaryData: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+const SubmissionVersionSchema = new mongoose.Schema(
+  {
+    versionNumber: { type: Number, required: true, min: 1 },
+    action: {
+      type: String,
+      enum: ["CREATE", "UPDATE", "GRADE"],
+      required: true,
+    },
+    contentType: {
+      type: String,
+      enum: ["LINK", "FILE", "BOTH", "TEXT"],
+      default: "LINK",
+    },
+    link: { type: String, default: "" },
+    text: { type: String, default: "" },
+    files: {
+      type: [SubmissionVersionFileSchema],
+      default: [],
+    },
+    status: {
+      type: String,
+      enum: ["DRAFT", "TURNED_IN", "RETURNED"],
+      default: "TURNED_IN",
+    },
+    marks: { type: Number, default: null },
+    feedback: { type: String, default: "" },
+    updatedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    updatedByName: { type: String, default: "" },
+    updatedByRole: { type: String, default: "" },
+    updatedAt: { type: Date, default: Date.now },
+    algorandTxId: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
 const SubmissionFileSchema = new mongoose.Schema(
   {
     fileName: {
@@ -75,6 +124,15 @@ const SubmissionSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+    },
+    versionNumber: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+    versionHistory: {
+      type: [SubmissionVersionSchema],
+      default: [],
     },
   },
   {

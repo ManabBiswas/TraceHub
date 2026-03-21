@@ -121,6 +121,39 @@ export const api = {
       });
       return response.json();
     },
+
+    getHistory: async (id) => {
+      const response = await fetch(`${API_BASE_URL}/resources/${id}/history`, {
+        headers: getHeaders(true),
+      });
+      return response.json();
+    },
+
+    update: async (id, payload) => {
+      if (payload?.file) {
+        const formData = new FormData();
+        formData.append("title", payload.title || "");
+        formData.append("aiSummary", payload.aiSummary || "");
+        formData.append("aiTags", JSON.stringify(payload.aiTags || []));
+        formData.append("file", payload.file);
+
+        const response = await fetch(`${API_BASE_URL}/resources/${id}`, {
+          method: "PATCH",
+          headers: {
+            ...getAuthHeader(),
+          },
+          body: formData,
+        });
+        return response.json();
+      }
+
+      const response = await fetch(`${API_BASE_URL}/resources/${id}`, {
+        method: "PATCH",
+        headers: getHeaders(true),
+        body: JSON.stringify(payload),
+      });
+      return response.json();
+    },
   },
 
   // ========== UPLOAD ENDPOINTS ==========
@@ -228,6 +261,17 @@ export const api = {
       return response.json();
     },
 
+    getPostHistory: async (classroomId, postId) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/history`,
+        {
+          method: "GET",
+          headers: getHeaders(true),
+        },
+      );
+      return response.json();
+    },
+
     createPost: async (classroomId, payload) => {
       const hasFiles = Array.isArray(payload.files) && payload.files.length > 0;
 
@@ -280,6 +324,47 @@ export const api = {
       return response.json();
     },
 
+    updatePost: async (classroomId, postId, payload) => {
+      if (Array.isArray(payload.files) && payload.files.length > 0) {
+        const formData = new FormData();
+        formData.append("title", payload.title || "");
+        formData.append("body", payload.body || "");
+        formData.append("dueDate", payload.dueDate || "");
+        formData.append(
+          "points",
+          payload.points === null || typeof payload.points === "undefined"
+            ? ""
+            : String(payload.points),
+        );
+
+        payload.files.forEach((file) => {
+          formData.append("attachments", file);
+        });
+
+        const response = await fetch(
+          `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}`,
+          {
+            method: "PATCH",
+            headers: {
+              ...getAuthHeader(),
+            },
+            body: formData,
+          },
+        );
+        return response.json();
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}`,
+        {
+          method: "PATCH",
+          headers: getHeaders(true),
+          body: JSON.stringify(payload),
+        },
+      );
+      return response.json();
+    },
+
     submitLink: async (classroomId, postId, link) => {
       const response = await fetch(
         `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions/link`,
@@ -318,6 +403,28 @@ export const api = {
     getSubmissions: async (classroomId, postId) => {
       const response = await fetch(
         `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions`,
+        {
+          method: "GET",
+          headers: getHeaders(true),
+        },
+      );
+      return response.json();
+    },
+
+    getMySubmission: async (classroomId, postId) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions/me`,
+        {
+          method: "GET",
+          headers: getHeaders(true),
+        },
+      );
+      return response.json();
+    },
+
+    getSubmissionHistory: async (classroomId, postId, submissionId) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions/${submissionId}/history`,
         {
           method: "GET",
           headers: getHeaders(true),

@@ -1,20 +1,63 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../config/Api";
+import { useAuth } from "../context/AuthContext";
 
 const ClassroomPostDetails = () => {
   const navigate = useNavigate();
   const { classroomId, postId } = useParams();
+  const { isStudent, isProfessor, isAdmin } = useAuth();
+  const canEditPost = isProfessor || isAdmin;
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [postHistory, setPostHistory] = useState([]);
+  const [submissionHistory, setSubmissionHistory] = useState([]);
+  const [mySubmission, setMySubmission] = useState(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [savingPost, setSavingPost] = useState(false);
+  const [editingPost, setEditingPost] = useState(false);
+  const [postEditForm, setPostEditForm] = useState({
+    title: "",
+    body: "",
+    dueDate: "",
+    points: "",
+    files: [],
+  });
   const [submissionForm, setSubmissionForm] = useState({
     link: "",
     text: "",
     files: [],
   });
+
+  const formatDateTime = (value) => {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "-";
+    return parsed.toLocaleString();
+  };
+
+  const loadSubmissionTimeline = async (submissionId) => {
+    if (!submissionId) {
+      setSubmissionHistory([]);
+      return;
+    }
+
+    const response = await api.classrooms.getSubmissionHistory(
+      classroomId,
+      postId,
+      submissionId,
+    );
+
+    if (response.error) {
+      setSubmissionHistory([]);
+      return;
+    }
+
+    setSubmissionHistory(response.versions || []);
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -26,19 +69,64 @@ const ClassroomPostDetails = () => {
       const response = await api.classrooms.getPosts(classroomId);
       if (!isActive) return;
 
-      setLoading(false);
       if (response.error) {
+        setLoading(false);
         setError(response.error);
         return;
       }
 
-      const foundPost = (response.posts || []).find((item) => item._id === postId);
+      const foundPost = (response.posts || []).find(
+        (item) => item._id === postId,
+      );
       if (!foundPost) {
+        setLoading(false);
         setError("Post not found");
         return;
       }
 
       setPost(foundPost);
+      setPostEditForm({
+        title: foundPost.title || "",
+        body: foundPost.body || "",
+        dueDate: foundPost.dueDate
+          ? new Date(foundPost.dueDate).toISOString().slice(0, 16)
+          : "",
+        points:
+          foundPost.points === null || typeof foundPost.points === "undefined"
+            ? ""
+            : String(foundPost.points),
+        files: [],
+      });
+
+      setTimelineLoading(true);
+      const postHistoryResponse = await api.classrooms.getPostHistory(
+        classroomId,
+        postId,
+      );
+      if (!isActive) return;
+
+      setPostHistory(postHistoryResponse.versions || []);
+
+      if (foundPost.type === "ASSIGNMENT" && isStudent) {
+        const mySubmissionResponse = await api.classrooms.getMySubmission(
+          classroomId,
+          postId,
+        );
+        if (!isActive) return;
+
+        const existingSubmission = mySubmissionResponse.submission || null;
+        setMySubmission(existingSubmission);
+
+        if (existingSubmission?._id) {
+          await loadSubmissionTimeline(existingSubmission._id);
+          if (!isActive) return;
+        } else {
+          setSubmissionHistory([]);
+        }
+      }
+
+      setTimelineLoading(false);
+      setLoading(false);
     };
 
     void run();
@@ -46,7 +134,7 @@ const ClassroomPostDetails = () => {
     return () => {
       isActive = false;
     };
-  }, [classroomId, postId]);
+  }, [classroomId, postId, isStudent]);
 
   const formatSubmissionDateTime = (dateValue) => {
     if (!dateValue) return { date: "-", time: "-" };
@@ -65,11 +153,15 @@ const ClassroomPostDetails = () => {
     setError("");
     setMessage("");
 
-    const response = await api.classrooms.submitAssignment(classroomId, post._id, {
-      link: submissionForm.link,
-      text: submissionForm.text,
-      files: submissionForm.files,
-    });
+    const response = await api.classrooms.submitAssignment(
+      classroomId,
+      post._id,
+      {
+        link: submissionForm.link,
+        text: submissionForm.text,
+        files: submissionForm.files,
+      },
+    );
 
     if (response.error) {
       setError(response.error);
@@ -78,6 +170,55 @@ const ClassroomPostDetails = () => {
 
     setMessage(response.message || "Assignment submitted");
     setSubmissionForm({ link: "", text: "", files: [] });
+
+    if (response.submission?._id) {
+      setMySubmission(response.submission);
+      await loadSubmissionTimeline(response.submission._id);
+    }
+  };
+
+  const handleSavePostChanges = async () => {
+    if (!post || !canEditPost) return;
+
+    setSavingPost(true);
+    setError("");
+    setMessage("");
+
+    const payload = {
+      title: postEditForm.title,
+      body: postEditForm.body,
+      dueDate: postEditForm.dueDate ? new Date(postEditForm.dueDate) : null,
+      points:
+        postEditForm.points.trim().length > 0
+          ? Number(postEditForm.points)
+          : null,
+      files: postEditForm.files,
+    };
+
+    const response = await api.classrooms.updatePost(
+      classroomId,
+      post._id,
+      payload,
+    );
+
+    setSavingPost(false);
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    setPost(response.post || post);
+    setEditingPost(false);
+    setMessage(response.message || "Post updated");
+
+    const historyResponse = await api.classrooms.getPostHistory(
+      classroomId,
+      post._id,
+    );
+    if (!historyResponse?.error) {
+      setPostHistory(historyResponse.versions || []);
+    }
   };
 
   const submission = formatSubmissionDateTime(post?.dueDate);
@@ -96,7 +237,11 @@ const ClassroomPostDetails = () => {
       </div>
 
       {loading && <p className="mb-4 text-[#bcd2c9]">Loading...</p>}
-      {error && <p className="mb-4 rounded border border-red-500/40 bg-red-500/20 p-3 text-sm">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded border border-red-500/40 bg-red-500/20 p-3 text-sm">
+          {error}
+        </p>
+      )}
       {message && (
         <p className="mb-4 rounded border border-emerald-500/40 bg-emerald-500/20 p-3 text-sm">
           {message}
@@ -105,8 +250,68 @@ const ClassroomPostDetails = () => {
 
       {!loading && !error && post && (
         <section className="rounded-xl border border-[#2ff5a838] bg-white/10 p-4">
-          <h2 className="text-2xl font-semibold">{post.title}</h2>
+          {editingPost ? (
+            <input
+              value={postEditForm.title}
+              onChange={(e) =>
+                setPostEditForm((prev) => ({ ...prev, title: e.target.value }))
+              }
+              className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-2xl font-semibold"
+            />
+          ) : (
+            <h2 className="text-2xl font-semibold">{post.title}</h2>
+          )}
           <p className="mt-1 text-sm text-[#bcd2c9]">{post.type}</p>
+
+          {canEditPost && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {!editingPost ? (
+                <button
+                  type="button"
+                  className="rounded border border-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#d8ebe3] hover:bg-[#2ff5a81a]"
+                  onClick={() => setEditingPost(true)}
+                >
+                  Edit Post
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="rounded bg-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#142019]"
+                    disabled={savingPost}
+                    onClick={() => {
+                      void handleSavePostChanges();
+                    }}
+                  >
+                    {savingPost ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-white/20 px-3 py-1 text-xs"
+                    disabled={savingPost}
+                    onClick={() => {
+                      setEditingPost(false);
+                      setPostEditForm({
+                        title: post.title || "",
+                        body: post.body || "",
+                        dueDate: post.dueDate
+                          ? new Date(post.dueDate).toISOString().slice(0, 16)
+                          : "",
+                        points:
+                          post.points === null ||
+                          typeof post.points === "undefined"
+                            ? ""
+                            : String(post.points),
+                        files: [],
+                      });
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {post.type === "ASSIGNMENT" && (
             <div className="mt-3 rounded border border-white/10 bg-[#0f1613a6] p-3">
@@ -118,10 +323,84 @@ const ClassroomPostDetails = () => {
             </div>
           )}
 
-          {post.body && (
+          {(post.body || editingPost) && (
             <div className="mt-4 rounded border border-white/10 bg-[#1f292580] p-3">
               <p className="mb-1 font-semibold">Details</p>
-              <p className="text-sm leading-7 text-[#d8ebe3]">{post.body}</p>
+              {editingPost ? (
+                <textarea
+                  rows={4}
+                  value={postEditForm.body}
+                  onChange={(e) =>
+                    setPostEditForm((prev) => ({
+                      ...prev,
+                      body: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
+                />
+              ) : (
+                <p className="text-sm leading-7 text-[#d8ebe3]">{post.body}</p>
+              )}
+            </div>
+          )}
+
+          {editingPost && (
+            <div className="mt-4 grid gap-3 rounded border border-white/10 bg-[#1f292580] p-3 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs text-[#9fc0b2]">
+                  Due Date
+                </label>
+                <input
+                  type="datetime-local"
+                  value={postEditForm.dueDate}
+                  onChange={(e) =>
+                    setPostEditForm((prev) => ({
+                      ...prev,
+                      dueDate: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-[#9fc0b2]">
+                  Points
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={postEditForm.points}
+                  onChange={(e) =>
+                    setPostEditForm((prev) => ({
+                      ...prev,
+                      points: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-xs text-[#9fc0b2]">
+                  Add Attachments (optional)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) =>
+                    setPostEditForm((prev) => ({
+                      ...prev,
+                      files: Array.from(e.target.files || []),
+                    }))
+                  }
+                  className="block w-full text-xs text-[#bcd2c9]"
+                />
+                {postEditForm.files.length > 0 && (
+                  <p className="mt-1 text-xs text-[#bcd2c9]">
+                    {postEditForm.files.length} file(s) will be added to this
+                    post.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -208,6 +487,112 @@ const ClassroomPostDetails = () => {
             <p className="mt-4 rounded border border-white/10 bg-[#0f1613d9] p-3 text-sm text-[#bcd2c9]">
               Upload and submission are available only for assignment posts.
             </p>
+          )}
+
+          <div className="mt-4 rounded border border-[#2ff5a838] bg-[#0f1613d9] p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#e8f2ed]">
+                Post Timeline (Blockchain Versions)
+              </p>
+              <span className="text-xs text-[#9fc0b2]">
+                {postHistory.length} version(s)
+              </span>
+            </div>
+
+            {timelineLoading ? (
+              <p className="text-sm text-[#bcd2c9]">Loading timeline...</p>
+            ) : postHistory.length === 0 ? (
+              <p className="text-sm text-[#bcd2c9]">No post versions yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {postHistory.map((version) => (
+                  <div
+                    key={`post-v-${version.versionNumber}`}
+                    className="rounded border border-white/10 bg-[#1f292580] p-3 text-sm"
+                  >
+                    <p className="font-semibold text-[#e8f2ed]">
+                      v{version.versionNumber} - {version.action}
+                    </p>
+                    <p className="text-[#bcd2c9]">
+                      By {version.updatedByName || "System"} (
+                      {version.updatedByRole || "SYSTEM"})
+                    </p>
+                    <p className="text-[#bcd2c9]">
+                      {formatDateTime(version.updatedAt)}
+                    </p>
+                    {version.algorandTxId && (
+                      <p className="mt-1 text-xs text-[#8cf0c8]">
+                        Algorand TX: {version.algorandTxId}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {post.type === "ASSIGNMENT" && isStudent && (
+            <div className="mt-4 rounded border border-[#2ff5a838] bg-[#0f1613d9] p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-[#e8f2ed]">
+                  My Submission Timeline
+                </p>
+                <span className="text-xs text-[#9fc0b2]">
+                  {submissionHistory.length} version(s)
+                </span>
+              </div>
+
+              {!mySubmission ? (
+                <p className="text-sm text-[#bcd2c9]">
+                  No submission yet. Submit once to start your version timeline.
+                </p>
+              ) : (
+                <>
+                  <p className="mb-2 text-xs text-[#bcd2c9]">
+                    Latest status: {mySubmission.status || "-"}
+                    {typeof mySubmission.marks === "number"
+                      ? ` | Marks: ${mySubmission.marks}`
+                      : ""}
+                  </p>
+                  {submissionHistory.length === 0 ? (
+                    <p className="text-sm text-[#bcd2c9]">
+                      No submission versions found.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {submissionHistory.map((version) => (
+                        <div
+                          key={`submission-v-${version.versionNumber}`}
+                          className="rounded border border-white/10 bg-[#1f292580] p-3 text-sm"
+                        >
+                          <p className="font-semibold text-[#e8f2ed]">
+                            v{version.versionNumber} - {version.action}
+                          </p>
+                          <p className="text-[#bcd2c9]">
+                            {version.status || "-"}
+                            {typeof version.marks === "number"
+                              ? ` | Marks: ${version.marks}`
+                              : ""}
+                          </p>
+                          <p className="text-[#bcd2c9]">
+                            By {version.updatedByName || "System"} (
+                            {version.updatedByRole || "SYSTEM"})
+                          </p>
+                          <p className="text-[#bcd2c9]">
+                            {formatDateTime(version.updatedAt)}
+                          </p>
+                          {version.algorandTxId && (
+                            <p className="mt-1 text-xs text-[#8cf0c8]">
+                              Algorand TX: {version.algorandTxId}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           <div className="mt-4">
