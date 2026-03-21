@@ -282,7 +282,9 @@ const Classrooms = () => {
       (file) => file.type !== "application/pdf",
     );
     if (nonPdfFile) {
-      setError(`Unsupported file type: ${nonPdfFile.name}. Only PDF files are allowed.`);
+      setError(
+        `Unsupported file type: ${nonPdfFile.name}. Only PDF files are allowed.`,
+      );
       return;
     }
 
@@ -636,7 +638,8 @@ const Classrooms = () => {
                 />
                 {createPostForm.files.length > 0 && (
                   <p className="mt-1 text-xs text-[#bcd2c9]">
-                    {createPostForm.files.length} PDF file(s) selected (max 5 files, 5MB each)
+                    {createPostForm.files.length} PDF file(s) selected (max 5
+                    files, 5MB each)
                   </p>
                 )}
               </div>

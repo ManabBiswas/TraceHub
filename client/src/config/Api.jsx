@@ -208,8 +208,7 @@ export const api = {
     },
 
     createPost: async (classroomId, payload) => {
-      const hasFiles =
-        Array.isArray(payload.files) && payload.files.length > 0;
+      const hasFiles = Array.isArray(payload.files) && payload.files.length > 0;
 
       if (hasFiles) {
         const formData = new FormData();
