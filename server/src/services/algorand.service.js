@@ -174,6 +174,10 @@ async function resolveSigningAccount() {
  * Build the structured note that gets written to the Algorand blockchain.
  * Judges can see this in the testnet explorer by clicking the transaction
  * and decoding the note field (base64 → UTF-8).
+ * 
+ * Now includes contentHash for tamper detection: if the content in MongoDB
+ * changes after this transaction is minted, recomputing the hash will produce
+ * a different result, proving tampering occurred.
  */
 function buildNote({
   entityType,
@@ -183,6 +187,7 @@ function buildNote({
   actor,
   referenceUrl,
   payload,
+  contentHash,
 }) {
   const note = {
     app: "TraceHub",
@@ -195,6 +200,11 @@ function buildNote({
     actor,
     referenceUrl: referenceUrl ?? "",
     payload: payload ?? {},
+
+    // SHA-256 of the actual content at the moment of signing.
+    // Tamper with MongoDB → hash recomputation → mismatch → INVALID
+    contentHash: contentHash ?? "",
+
     timestamp: new Date().toISOString(),
   };
   return new TextEncoder().encode(JSON.stringify(note));
@@ -216,6 +226,7 @@ async function _mintOnChain({
   actor,
   referenceUrl,
   payload,
+  contentHash,
 }) {
   return withRetry("mint", async () => {
     const algod = getAlgodClient();
@@ -230,6 +241,7 @@ async function _mintOnChain({
       actor,
       referenceUrl,
       payload,
+      contentHash,
     });
 
     // Algorand note field max = 1024 bytes — truncate payload gracefully
@@ -238,16 +250,16 @@ async function _mintOnChain({
       noteBytes.length <= maxNoteBytes
         ? noteBytes
         : new TextEncoder().encode(
-            JSON.stringify({
-              app: "TraceHub",
-              entityType,
-              entityId,
-              action,
-              actor,
-              timestamp: new Date().toISOString(),
-              truncated: true,
-            }),
-          );
+          JSON.stringify({
+            app: "TraceHub",
+            entityType,
+            entityId,
+            action,
+            actor,
+            timestamp: new Date().toISOString(),
+            truncated: true,
+          }),
+        );
 
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       sender: account.addr,
@@ -285,6 +297,7 @@ async function _mintOnChain({
  * @param {string} opts.actor         - User name or role
  * @param {string} [opts.referenceUrl]- IPFS / storage URL
  * @param {object} [opts.payload]     - Extra metadata to encode in the note
+ * @param {string} [opts.contentHash] - SHA-256 hash of content for tamper detection
  * @returns {Promise<string>}         - Algorand TXID or demo fallback string
  */
 async function mintVersionProof(opts) {

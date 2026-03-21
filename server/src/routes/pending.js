@@ -2,6 +2,7 @@ import express from "express";
 import { uploadToDuality } from "../services/storage.service.js";
 import { mintVersionProof } from "../services/algorand.service.js";
 import Resource from "../models/Resource.js";
+import { hashResource } from "../utils/contentHash.js";
 
 const router = express.Router();
 
@@ -76,7 +77,11 @@ GitHub URL: ${resource.githubUrl}
       dualityUrl = `https://storage.duality.network/ipfs/QmPending${resource._id}`;
     }
 
-    // Step 2: Mint Algorand transaction
+    // Step 2: Compute content hash for blockchain verification
+    // This hash will be written to Algorand and used to detect tampering
+    const contentHash = hashResource(resource);
+
+    // Step 3: Mint Algorand transaction
     let algorandTxId = null;
     try {
       const nextVersion = Number(resource.versionNumber || 1) + 1;
@@ -87,6 +92,7 @@ GitHub URL: ${resource.githubUrl}
         action: "APPROVE",
         actor: "Professor (Passcode)",
         referenceUrl: dualityUrl,
+        contentHash, // This is the critical addition - hash is now on-chain
         payload: {
           title: resource.title,
           githubUrl: resource.githubUrl || "",
@@ -98,12 +104,13 @@ GitHub URL: ${resource.githubUrl}
       algorandTxId = process.env.DEMO_FALLBACK_TXID || null;
     }
 
-    // Step 3: Update resource status
+    // Step 4: Update resource status
     resource.status = "approved";
     resource.approvedAt = new Date();
     resource.approvedBy = "Professor (Passcode)";
     resource.dualityUrl = dualityUrl;
     resource.algorandTxId = algorandTxId;
+    resource.contentHash = contentHash; // Store hash for verification comparison
     resource.versionHistory = resource.versionHistory || [];
     if (resource.versionHistory.length === 0) {
       resource.versionHistory.push({
