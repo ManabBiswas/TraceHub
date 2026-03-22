@@ -119,7 +119,7 @@ export function ProjectAnalysisCard({
             {metadata.techStack.slice(0, 8).map((tech, i) => (
               <span
                 key={i}
-                className="rounded-full border border-[#2ff5a847] bg-[#2ff5a81a] px-2 py-0.5 text-xs text-[#8cf0c8]"
+                className="rounded-full border border-[#2ff5a847] bg-[#2ff5a81a] px-2 py-0.5 text-xs text-[#8cf0c8] transition hover:cursor-pointer"
               >
                 {tech}
               </span>
@@ -196,7 +196,7 @@ export function ProjectAnalysisCard({
             return (
               <div
                 key={i}
-                className={`rounded border p-3 text-xs space-y-1 ${verdictColor}`}
+                className={`rounded border p-3 text-xs space-y-1 transition hover:cursor-pointer ${verdictColor}`}
               >
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-[#e8f2ed]">

@@ -2,23 +2,55 @@ import express from "express";
 import { uploadToDuality } from "../services/storage.service.js";
 import { mintVersionProof } from "../services/algorand.service.js";
 import Resource from "../models/Resource.js";
+import Submission from "../models/Submission.js";
 import { hashResource } from "../utils/contentHash.js";
 
 const router = express.Router();
 
 /**
  * GET /api/pending
- * Get all pending resources (no auth required, public)
+ * Get all pending resources and student submissions (no auth required, public)
  */
 router.get("/", async (req, res) => {
   try {
-    const pending = await Resource.find({ status: "pending" }).sort({
-      createdAt: -1,
-    });
+    // Fetch pending resources (uploaded files)
+    const pendingResources = await Resource.find({ status: "pending" })
+      .populate("userId", "name email")
+      .sort({ createdAt: -1 });
+
+    // Fetch pending student submissions (project files under review)
+    const pendingSubmissions = await Submission.find({ submissionStatus: "UNDER_REVIEW" })
+      .populate("studentId", "name email")
+      .populate("classroomId", "name")
+      .populate("postId", "title")
+      .sort({ updatedAt: -1 });
+
+    // Transform submissions to match resource structure for frontend
+    const formattedSubmissions = pendingSubmissions.map((sub) => ({
+      _id: sub._id,
+      type: "SUBMISSION",
+      title: `${sub.studentId?.name || "Student"} - ${sub.postId?.title || "Project"}`,
+      uploaderName: sub.studentId?.name || "Student",
+      uploaderEmail: sub.studentId?.email || "",
+      githubUrl: sub.githubUrl,
+      files: sub.files,
+      classroomId: sub.classroomId,
+      postId: sub.postId,
+      studentId: sub.studentId,
+      status: "pending",
+      createdAt: sub.createdAt,
+      updatedAt: sub.updatedAt,
+    }));
+
+    // Combine both into single array
+    const allPending = [...pendingResources, ...formattedSubmissions].sort(
+      (a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
+    );
 
     res.json({
-      count: pending.length,
-      resources: pending,
+      count: allPending.length,
+      resources: allPending,
+      submissionsCount: pendingSubmissions.length,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -197,6 +229,101 @@ router.delete("/:resourceId", async (req, res) => {
       deletedId: resourceId,
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/pending/approve-submission/:submissionId
+ * Approve a pending student submission
+ * Body: { passcode }
+ */
+router.post("/approve-submission/:submissionId", async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { passcode } = req.body;
+
+    // Simple passcode check
+    if (passcode !== process.env.PROFESSOR_PASSCODE) {
+      return res.status(403).json({
+        error: "Invalid passcode. Contact an organizer if you're a professor.",
+      });
+    }
+
+    // Find the submission
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+
+    if (submission.submissionStatus !== "UNDER_REVIEW") {
+      return res.status(400).json({ error: "Submission is not pending review" });
+    }
+
+    // Update submission status to VERIFIED
+    submission.submissionStatus = "VERIFIED";
+    submission.projectVerification.decision = "VERIFIED";
+    submission.projectVerification.verifiedAt = new Date();
+    submission.projectVerification.verifiedBy = "Professor (Passcode)";
+
+    await submission.save();
+
+    res.json({
+      message: "Submission approved and verified!",
+      submissionId: submission._id,
+      status: "VERIFIED",
+    });
+  } catch (error) {
+    console.error("Submission approval error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/pending/reject-submission/:submissionId
+ * Reject a pending student submission
+ * Body: { passcode, feedback }
+ */
+router.post("/reject-submission/:submissionId", async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { passcode, feedback } = req.body;
+
+    // Simple passcode check
+    if (passcode !== process.env.PROFESSOR_PASSCODE) {
+      return res.status(403).json({
+        error: "Invalid passcode. Contact an organizer if you're a professor.",
+      });
+    }
+
+    // Find the submission
+    const submission = await Submission.findById(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+
+    if (submission.submissionStatus !== "UNDER_REVIEW") {
+      return res.status(400).json({ error: "Submission is not pending review" });
+    }
+
+    // Update submission status to REJECTED_FOR_REVISION
+    submission.submissionStatus = "REJECTED_FOR_REVISION";
+    submission.projectVerification.decision = "REJECTED_FOR_REVISION";
+    submission.projectVerification.verifiedAt = new Date();
+    submission.projectVerification.verifiedBy = "Professor (Passcode)";
+    submission.projectVerification.professorNote = feedback || "Please revise and resubmit";
+    submission.revisionCycle = (submission.revisionCycle || 1) + 1;
+
+    await submission.save();
+
+    res.json({
+      message: "Submission rejected. Student notified to revise.",
+      submissionId: submission._id,
+      status: "REJECTED_FOR_REVISION",
+      revisionCycle: submission.revisionCycle,
+    });
+  } catch (error) {
+    console.error("Submission rejection error:", error);
     res.status(500).json({ error: error.message });
   }
 });

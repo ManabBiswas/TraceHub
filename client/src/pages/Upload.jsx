@@ -106,7 +106,7 @@ const Upload = () => {
       if (response.error) {
         setError(response.error);
       } else {
-        setSuccess("Document uploaded and published successfully!");
+        setSuccess("Document uploaded successfully! Awaiting approval in the Pending queue.");
         setTitle("");
         setFile(null);
 

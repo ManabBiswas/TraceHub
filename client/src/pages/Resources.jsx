@@ -11,7 +11,7 @@ const Resources = () => {
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("approved");
   const [openHistoryById, setOpenHistoryById] = useState({});
   const [historyById, setHistoryById] = useState({});
   const [historyLoadingById, setHistoryLoadingById] = useState({});
@@ -24,6 +24,8 @@ const Resources = () => {
   });
   const [verificationResult, setVerificationResult] = useState(null);
   const [verifyingVersionId, setVerifyingVersionId] = useState(null);
+  const [classroomSelectFocused, setClassroomSelectFocused] = useState(false);
+  const [message, setMessage] = useState("");
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -160,8 +162,6 @@ const Resources = () => {
     }
   };
 
-  const [message, setMessage] = useState("");
-
   const verifyVersionIntegrity = (version) => {
     if (!version.algorandTxId || version.algorandTxId.startsWith("DEMO_")) {
       setVerificationResult({
@@ -190,7 +190,13 @@ const Resources = () => {
           <select
             value={selectedClassroomId}
             onChange={(e) => setSelectedClassroomId(e.target.value)}
-            className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-slate-100"
+            onFocus={() => setClassroomSelectFocused(true)}
+            onBlur={() => setClassroomSelectFocused(false)}
+            className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+              classroomSelectFocused
+                ? "border-[#2ff5a8] bg-[#2ff5a8] text-[#142019]"
+                : "border-white/20 bg-white/10 text-slate-100 hover:border-[#2ff5a8] hover:bg-[#2ff5a822]"
+            }`}
           >
             {classrooms.length === 0 && <option value="">No classrooms</option>}
             {classrooms.map((classroom) => (

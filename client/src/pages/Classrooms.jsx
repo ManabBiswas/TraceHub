@@ -291,8 +291,8 @@ const Classrooms = () => {
       dueDate: createPostForm.dueDate || null,
       points: createPostForm.points ? Number(createPostForm.points) : null,
       allowStudentSubmissions:
-        createPostForm.type === "ASSIGNMENT"
-          ? createPostForm.allowStudentSubmissions
+        createPostForm.type === "PROJECT" || createPostForm.type === "ASSIGNMENT"
+          ? true
           : false,
       allowedSubmissionTypes,
       files: createPostForm.files,
@@ -576,31 +576,38 @@ const Classrooms = () => {
                 >
                   <option value="ANNOUNCEMENT">Announcement</option>
                   <option value="ASSIGNMENT">Assignment</option>
+                  <option value="PROJECT">Project</option>
                 </select>
-                <input
-                  className="rounded bg-[#1f2925cc] p-2"
-                  type="datetime-local"
-                  value={createPostForm.dueDate}
-                  onChange={(e) =>
-                    setCreatePostForm((prev) => ({
-                      ...prev,
-                      dueDate: e.target.value,
-                    }))
-                  }
-                />
-                <input
-                  className="rounded bg-[#1f2925cc] p-2"
-                  type="number"
-                  min="0"
-                  placeholder="Points"
-                  value={createPostForm.points}
-                  onChange={(e) =>
-                    setCreatePostForm((prev) => ({
-                      ...prev,
-                      points: e.target.value,
-                    }))
-                  }
-                />
+
+                {(createPostForm.type === "ASSIGNMENT" || createPostForm.type === "PROJECT") && (
+                  <>
+                    <input
+                      className="rounded bg-[#1f2925cc] p-2"
+                      type="datetime-local"
+                      value={createPostForm.dueDate}
+                      onChange={(e) =>
+                        setCreatePostForm((prev) => ({
+                          ...prev,
+                          dueDate: e.target.value,
+                        }))
+                      }
+                    />
+                    <input
+                      className="rounded bg-[#1f2925cc] p-2"
+                      type="number"
+                      min="0"
+                      placeholder="Points"
+                      value={createPostForm.points}
+                      onChange={(e) =>
+                        setCreatePostForm((prev) => ({
+                          ...prev,
+                          points: e.target.value,
+                        }))
+                      }
+                    />
+                  </>
+                )}
+
                 <button
                   type="submit"
                   className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019]"
@@ -609,45 +616,47 @@ const Classrooms = () => {
                 </button>
               </div>
 
-              <div className="mt-2">
-                <label className="mb-1 block text-sm">
-                  Attach files to post (optional, max 5)
-                </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label
-                    htmlFor="create-post-files"
-                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
-                  >
-                    Choose Files
+              {(createPostForm.type === "ASSIGNMENT" || createPostForm.type === "PROJECT") && (
+                <div className="mt-2">
+                  <label className="mb-1 block text-sm">
+                    Attach files to post (optional, max 5)
                   </label>
-                  <span className="text-xs text-[#bcd2c9]">
-                    {createPostForm.files.length > 0
-                      ? `${createPostForm.files.length} file(s) selected`
-                      : "No file chosen"}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label
+                      htmlFor="create-post-files"
+                      className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
+                    >
+                      Choose Files
+                    </label>
+                    <span className="text-xs text-[#bcd2c9]">
+                      {createPostForm.files.length > 0
+                        ? `${createPostForm.files.length} file(s) selected`
+                        : "No file chosen"}
+                    </span>
+                  </div>
+                  <input
+                    id="create-post-files"
+                    className="hidden"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    multiple
+                    onChange={(e) =>
+                      setCreatePostForm((prev) => ({
+                        ...prev,
+                        files: Array.from(e.target.files || []),
+                      }))
+                    }
+                  />
+                  {createPostForm.files.length > 0 && (
+                    <p className="mt-1 text-xs text-[#bcd2c9]">
+                      {createPostForm.files.length} PDF file(s) selected (max 5
+                      files, 5MB each)
+                    </p>
+                  )}
                 </div>
-                <input
-                  id="create-post-files"
-                  className="hidden"
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  multiple
-                  onChange={(e) =>
-                    setCreatePostForm((prev) => ({
-                      ...prev,
-                      files: Array.from(e.target.files || []),
-                    }))
-                  }
-                />
-                {createPostForm.files.length > 0 && (
-                  <p className="mt-1 text-xs text-[#bcd2c9]">
-                    {createPostForm.files.length} PDF file(s) selected (max 5
-                    files, 5MB each)
-                  </p>
-                )}
-              </div>
+              )}
 
-              {createPostForm.type === "ASSIGNMENT" && (
+              {(createPostForm.type === "ASSIGNMENT" || createPostForm.type === "PROJECT") && (
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -662,32 +671,36 @@ const Classrooms = () => {
                     />
                     Allow submissions
                   </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={createPostForm.allowLink}
-                      onChange={(e) =>
-                        setCreatePostForm((prev) => ({
-                          ...prev,
-                          allowLink: e.target.checked,
-                        }))
-                      }
-                    />
-                    Link submissions
-                  </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={createPostForm.allowFile}
-                      onChange={(e) =>
-                        setCreatePostForm((prev) => ({
-                          ...prev,
-                          allowFile: e.target.checked,
-                        }))
-                      }
-                    />
-                    File submissions
-                  </label>
+                  {createPostForm.type === "ASSIGNMENT" && (
+                    <>
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={createPostForm.allowLink}
+                          onChange={(e) =>
+                            setCreatePostForm((prev) => ({
+                              ...prev,
+                              allowLink: e.target.checked,
+                            }))
+                          }
+                        />
+                        Link submissions
+                      </label>
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={createPostForm.allowFile}
+                          onChange={(e) =>
+                            setCreatePostForm((prev) => ({
+                              ...prev,
+                              allowFile: e.target.checked,
+                            }))
+                          }
+                        />
+                        File submissions
+                      </label>
+                    </>
+                  )}
                 </div>
               )}
             </form>
@@ -709,18 +722,20 @@ const Classrooms = () => {
                       className="rounded border border-[#2ff5a8] px-3 py-1 text-xs"
                       onClick={() =>
                         navigate(
-                          `/classrooms/${selectedClassroomId}/posts/${post._id}`,
+                          post.type === "PROJECT"
+                            ? `/classrooms/${selectedClassroomId}/projects/${post._id}`
+                            : `/classrooms/${selectedClassroomId}/posts/${post._id}`,
                         )
                       }
                     >
                       Open Details
                     </button>
-                    {isTeacher && (
+                    {isTeacher && (post.type === "ASSIGNMENT" || post.type === "PROJECT") && (
                       <button
                         className="rounded border border-white/20 px-3 py-1 text-xs"
                         onClick={() => setSelectedPostId(post._id)}
                       >
-                        Manage Submissions
+                        Submissions ({submissions.filter(s => s.postId === post._id).length})
                       </button>
                     )}
                   </div>
@@ -756,137 +771,6 @@ const Classrooms = () => {
           </div>
         </section>
       </div>
-
-      {isTeacher && selectedPost && (
-        <section className="mt-6 rounded-xl border border-[#2ff5a838] bg-white/10 p-4">
-          <h2 className="mb-3 text-xl font-semibold">
-            Submissions for: {selectedPost.title}
-          </h2>
-
-          <div className="space-y-2">
-            {submissions.map((submission) => (
-              <div
-                key={submission._id}
-                className="rounded border border-white/10 bg-[#1f292580] p-3 text-sm"
-              >
-                <p className="font-semibold">
-                  {submission.studentId?.name || "Student"} (
-                  {submission.studentId?.email || "-"})
-                </p>
-                <p>Status: {submission.status}</p>
-                <p>Marks: {submission.marks ?? "-"}</p>
-                {submission.link && (
-                  <p>
-                    Link:{" "}
-                    <a
-                      href={submission.link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline"
-                    >
-                      Open
-                    </a>
-                  </p>
-                )}
-                {Array.isArray(submission.files) &&
-                  submission.files.length > 0 && (
-                    <div className="mt-2">
-                      <p className="mb-1">Files:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {submission.files.map((file, index) => (
-                          <button
-                            key={`${submission._id}-${index}`}
-                            type="button"
-                            onClick={() =>
-                              handleDownload(submission._id, index)
-                            }
-                            className="rounded border border-white/20 px-2 py-1 text-xs"
-                          >
-                            {file.fileName}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setGradeForm((prev) => ({
-                      ...prev,
-                      submissionId: submission._id,
-                    }))
-                  }
-                  className="mt-2 rounded border border-[#2ff5a8] px-2 py-1 text-xs text-[#2ff5a8]"
-                >
-                  Select for grading
-                </button>
-              </div>
-            ))}
-            {submissions.length === 0 && (
-              <p className="text-sm text-[#bcd2c9]">No submissions yet.</p>
-            )}
-          </div>
-
-          <form
-            onSubmit={handleGradeSubmission}
-            className="mt-4 rounded border border-white/10 bg-[#0f1613d9] p-3"
-          >
-            <h3 className="mb-2 font-semibold">Grade Submission</h3>
-            <select
-              className="mb-2 w-full rounded bg-[#1f2925cc] p-2"
-              value={gradeForm.submissionId}
-              onChange={(e) =>
-                setGradeForm((prev) => ({
-                  ...prev,
-                  submissionId: e.target.value,
-                }))
-              }
-              required
-            >
-              <option value="">Select submission</option>
-              {submissions.map((submission) => (
-                <option key={submission._id} value={submission._id}>
-                  {submission.studentId?.name || submission._id}
-                </option>
-              ))}
-            </select>
-            <input
-              className="mb-2 w-full rounded bg-[#1f2925cc] p-2"
-              type="number"
-              min="0"
-              placeholder="Marks"
-              value={gradeForm.marks}
-              onChange={(e) =>
-                setGradeForm((prev) => ({ ...prev, marks: e.target.value }))
-              }
-            />
-            <textarea
-              className="mb-2 w-full rounded bg-[#1f2925cc] p-2"
-              placeholder="Feedback"
-              value={gradeForm.feedback}
-              onChange={(e) =>
-                setGradeForm((prev) => ({ ...prev, feedback: e.target.value }))
-              }
-            />
-            <select
-              className="mb-2 w-full rounded bg-[#1f2925cc] p-2"
-              value={gradeForm.status}
-              onChange={(e) =>
-                setGradeForm((prev) => ({ ...prev, status: e.target.value }))
-              }
-            >
-              <option value="RETURNED">RETURNED</option>
-              <option value="TURNED_IN">TURNED_IN</option>
-            </select>
-            <button
-              type="submit"
-              className="rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019]"
-            >
-              Save Grade
-            </button>
-          </form>
-        </section>
-      )}
 
       {isTeacher &&
         user?.role === "PROFESSOR" &&

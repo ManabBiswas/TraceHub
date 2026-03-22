@@ -124,9 +124,7 @@ router.post(
         classroomId,
         userDepartment: user.department,
         role: "Professor",
-        status: "approved",
-        approvedBy: user.name,
-        approvedAt: new Date(),
+        status: "pending",
         aiSummary: aiData.summary,
         aiTags: aiData.tags || [],
         aiFlashcards: aiData.flashcards || [],
@@ -139,7 +137,7 @@ router.post(
             action: "CREATE",
             title,
             githubUrl: "",
-            status: "approved",
+            status: "pending",
             aiSummary: aiData.summary || "",
             aiTags: aiData.tags || [],
             techStack: [],
@@ -159,7 +157,7 @@ router.post(
       await resource.populate("classroomId", "name section subject");
 
       return res.status(200).json({
-        message: "Document uploaded successfully and verified on blockchain",
+        message: "Document uploaded successfully! Awaiting teacher approval before publishing.",
         resource,
       });
     } catch (err) {

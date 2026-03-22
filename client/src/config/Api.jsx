@@ -503,6 +503,20 @@ export const api = {
           : "post-attachment",
       };
     },
+
+    submitProject: async (classroomId, postId, formData) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions`,
+        {
+          method: "POST",
+          headers: {
+            ...getAuthHeader(),
+          },
+          body: formData,
+        },
+      );
+      return response.json();
+    },
   },
 };
 
