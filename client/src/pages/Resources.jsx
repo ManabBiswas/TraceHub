@@ -28,9 +28,6 @@ const Resources = () => {
   const [verifyingVersionId, setVerifyingVersionId] = useState(null);
   const [classroomSelectFocused, setClassroomSelectFocused] = useState(false);
   const [message, setMessage] = useState("");
-  const [passcodeModal, setPasscodeModal] = useState(null);
-  const [passcode, setPasscode] = useState("");
-  const [approving, setApproving] = useState(false);
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -208,25 +205,15 @@ const Resources = () => {
     }
   };
 
-  const handleApprove = (resourceId) => {
+  const handleApprove = async (resourceId) => {
     if (!canEdit) {
       setError("Only professors can approve submissions");
-      return;
-    }
-    setPasscodeModal({ id: resourceId, type: "submission" });
-    setPasscode("");
-  };
-
-  const submitApproval = async () => {
-    if (!passcode) {
-      setError("Please enter passcode");
       return;
     }
 
     setApproving(true);
     try {
-      const { id } = passcodeModal;
-      const endpoint = `${API_BASE_URL}/pending/approve-submission/${id}`;
+      const endpoint = `${API_BASE_URL}/pending/approve-submission/${resourceId}`;
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -234,7 +221,7 @@ const Resources = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ passcode: "" }),
       });
 
       const data = await response.json();
@@ -242,9 +229,7 @@ const Resources = () => {
       if (!response.ok) {
         setError(data.error || "Approval failed");
       } else {
-        setResources((prev) => prev.filter((r) => r._id !== id));
-        setPasscodeModal(null);
-        setPasscode("");
+        setResources((prev) => prev.filter((r) => r._id !== resourceId));
         setMessage("✓ Submission approved successfully");
       }
     } catch (err) {
@@ -830,71 +815,6 @@ const Resources = () => {
         </div>
       )}
 
-      {passcodeModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="rounded-2xl bg-[#1f2925] shadow-2xl border border-[#2ff5a838] overflow-hidden max-w-md w-full">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-[#2ff5a838] bg-linear-to-r from-[#2a3b34] to-[#1f2925] flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#2ff5a8]">
-                Approve Submission
-              </h3>
-              <button
-                onClick={() => {
-                  setPasscodeModal(null);
-                  setPasscode("");
-                }}
-                disabled={approving}
-                className="text-[#8cf0c8] hover:text-[#2ff5a8] transition text-xl leading-none disabled:opacity-50"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="px-6 py-5 space-y-4">
-              <p className="text-sm text-[#bfd0c8]">
-                Enter your passcode to approve this submission. This action is permanent.
-              </p>
-              <div className="relative">
-                <input
-                  type="password"
-                  placeholder="Enter passcode"
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter" && !approving) {
-                      submitApproval();
-                    }
-                  }}
-                  disabled={approving}
-                  className="w-full rounded-lg border border-[#2ff5a838] bg-[#0f160f] px-4 py-3 text-sm text-[#e8f2ed] placeholder-[#6b8d81] focus:border-[#2ff5a8] focus:outline-none focus:ring-2 focus:ring-[#2ff5a8]/20 transition disabled:opacity-50"
-                />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-[#2ff5a838] bg-[#1f292580] flex gap-3">
-              <button
-                onClick={submitApproval}
-                disabled={approving || !passcode}
-                className="flex-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {approving ? "Approving..." : "Approve"}
-              </button>
-              <button
-                onClick={() => {
-                  setPasscodeModal(null);
-                  setPasscode("");
-                }}
-                disabled={approving}
-                className="flex-1 rounded-lg border border-[#2ff5a838] hover:border-[#2ff5a8] hover:bg-[#2ff5a811] text-[#e8f2ed] px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
