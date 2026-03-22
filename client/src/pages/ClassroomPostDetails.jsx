@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../config/Api";
 import { useAuth } from "../context/AuthContext";
+import LatexEditor from "../components/LatexEditor";
 
 const ClassroomPostDetails = () => {
   const navigate = useNavigate();
@@ -37,6 +38,8 @@ const ClassroomPostDetails = () => {
     text: "",
     files: [],
   });
+  const [showLatexEditor, setShowLatexEditor] = useState(false);
+  const [latexContent, setLatexContent] = useState("");
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -255,6 +258,40 @@ const ClassroomPostDetails = () => {
     if (response.submission?._id) {
       setMySubmission(response.submission);
       await loadSubmissionTimeline(response.submission._id);
+    }
+  };
+
+  const handleLatexSubmit = async ({ latexSource, wordCount }) => {
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await api.classrooms.submitAssignment(
+        classroomId,
+        post._id,
+        {
+          link: "",
+          text: `[LaTeX Document — ${wordCount} words]\n\n${latexSource}`,
+          files: [],
+        },
+      );
+
+      if (response.error) {
+        setError(response.error);
+        throw new Error(response.error);
+      }
+
+      setMessage("✓ LaTeX assignment submitted successfully!");
+
+      if (response.submission?._id) {
+        setMySubmission(response.submission);
+        await loadSubmissionTimeline(response.submission._id);
+      }
+
+      setShowLatexEditor(false);
+      setLatexContent("");
+    } catch (err) {
+      setError(err.message || "Failed to submit LaTeX document");
     }
   };
 
@@ -514,66 +551,109 @@ const ClassroomPostDetails = () => {
             </div>
           )}
 
-          {post.type === "ASSIGNMENT" ? (
-            <form
-              onSubmit={handleSubmitAssignment}
-              className="mt-4 rounded border border-white/10 bg-[#0f1613d9] p-3"
-            >
-              <p className="mb-2 text-sm font-semibold">Upload document</p>
-              <input
-                className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                placeholder="Submission link (optional)"
-                value={submissionForm.link}
-                onChange={(e) =>
-                  setSubmissionForm((prev) => ({
-                    ...prev,
-                    link: e.target.value,
-                  }))
-                }
-              />
-              <textarea
-                className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                placeholder="Notes/text (optional)"
-                value={submissionForm.text}
-                onChange={(e) =>
-                  setSubmissionForm((prev) => ({
-                    ...prev,
-                    text: e.target.value,
-                  }))
-                }
-              />
-              <div className="mb-2 flex flex-wrap items-center gap-3">
-                <label
-                  htmlFor="submission-files"
-                  className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
+          {post.type === "ASSIGNMENT" && isStudent ? (
+            <div className="mt-4 space-y-3">
+              {/* Tab switcher — Standard or LaTeX */}
+              <div className="flex gap-2 rounded-xl border border-[#2ff5a838] bg-[#0f1613d9] p-1 w-fit">
+                <button
+                  type="button"
+                  onClick={() => setShowLatexEditor(false)}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    !showLatexEditor
+                      ? "bg-[#2ff5a8] text-[#142019]"
+                      : "text-[#8cf0c8] hover:bg-[#2ff5a815]"
+                  }`}
                 >
-                  Choose Files
-                </label>
-                <span className="text-xs text-[#bcd2c9]">
-                  {submissionForm.files.length > 0
-                    ? `${submissionForm.files.length} file(s) selected`
-                    : "No file chosen"}
-                </span>
+                  📎 Standard Upload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLatexEditor(true)}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                    showLatexEditor
+                      ? "bg-[#2ff5a8] text-[#142019]"
+                      : "text-[#8cf0c8] hover:bg-[#2ff5a815]"
+                  }`}
+                >
+                  ∑ Write in LaTeX
+                </button>
               </div>
-              <input
-                id="submission-files"
-                className="hidden"
-                type="file"
-                multiple
-                onChange={(e) =>
-                  setSubmissionForm((prev) => ({
-                    ...prev,
-                    files: Array.from(e.target.files || []),
-                  }))
-                }
-              />
-              <button
-                type="submit"
-                className="rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019]"
-              >
-                Submit Assignment
-              </button>
-            </form>
+
+              {/* ── Standard upload form ── */}
+              {!showLatexEditor && (
+                <form
+                  onSubmit={handleSubmitAssignment}
+                  className="rounded border border-white/10 bg-[#0f1613d9] p-3"
+                >
+                  <p className="mb-2 text-sm font-semibold">Upload document</p>
+                  <input
+                    className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
+                    placeholder="Submission link (optional)"
+                    value={submissionForm.link}
+                    onChange={(e) =>
+                      setSubmissionForm((prev) => ({
+                        ...prev,
+                        link: e.target.value,
+                      }))
+                    }
+                  />
+                  <textarea
+                    className="mb-2 w-full rounded bg-[#1f2925cc] p-2 text-sm"
+                    placeholder="Notes/text (optional)"
+                    value={submissionForm.text}
+                    onChange={(e) =>
+                      setSubmissionForm((prev) => ({
+                        ...prev,
+                        text: e.target.value,
+                      }))
+                    }
+                  />
+                  <div className="mb-2 flex flex-wrap items-center gap-3">
+                    <label
+                      htmlFor="submission-files"
+                      className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
+                    >
+                      Choose Files
+                    </label>
+                    <span className="text-xs text-[#bcd2c9]">
+                      {submissionForm.files.length > 0
+                        ? `${submissionForm.files.length} file(s) selected`
+                        : "No file chosen"}
+                    </span>
+                  </div>
+                  <input
+                    id="submission-files"
+                    className="hidden"
+                    type="file"
+                    multiple
+                    onChange={(e) =>
+                      setSubmissionForm((prev) => ({
+                        ...prev,
+                        files: Array.from(e.target.files || []),
+                      }))
+                    }
+                  />
+                  <button
+                    type="submit"
+                    className="rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019]"
+                  >
+                    Submit Assignment
+                  </button>
+                </form>
+              )}
+
+              {/* ── LaTeX editor ── */}
+              {showLatexEditor && (
+                <LatexEditor
+                  postTitle={post.title}
+                  onSubmit={handleLatexSubmit}
+                />
+              )}
+            </div>
+          ) : post.type === "ASSIGNMENT" ? (
+            <p className="mt-4 rounded border border-white/10 bg-[#0f1613d9] p-3 text-sm text-[#bcd2c9]">
+              Upload and submission are available only for students.
+            </p>
           ) : (
             <p className="mt-4 rounded border border-white/10 bg-[#0f1613d9] p-3 text-sm text-[#bcd2c9]">
               Upload and submission are available only for assignment posts.
