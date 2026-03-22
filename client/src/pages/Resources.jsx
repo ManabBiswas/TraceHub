@@ -254,11 +254,6 @@ const Resources = () => {
                     </button>
                   )}
                 </div>
-                <span
-                  className={`whitespace-nowrap rounded-md px-4 py-2 text-xs font-semibold uppercase tracking-wide ${resource.status === "approved" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
-                >
-                  {resource.status}
-                </span>
               </div>
 
               <div className="flex-1 p-6">

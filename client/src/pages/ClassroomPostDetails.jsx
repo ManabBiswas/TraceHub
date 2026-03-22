@@ -654,15 +654,25 @@ const ClassroomPostDetails = () => {
               <p className="mb-2 font-semibold">Attachments</p>
               <div className="flex flex-wrap gap-2">
                 {post.attachments.map((attachment, index) => (
-                  <a
+                  <button
                     key={`${post._id}-attachment-${index}`}
-                    href={attachment.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded border border-white/20 px-2 py-1 text-xs underline"
+                    type="button"
+                    onClick={() => {
+                      if (attachment.url) {
+                        window.open(attachment.url, "_blank");
+                      } else {
+                        alert("Attachment URL not available");
+                      }
+                    }}
+                    disabled={!attachment.url}
+                    className={`rounded border px-2 py-1 text-xs ${
+                      attachment.url
+                        ? "border-white/20 cursor-pointer hover:bg-white/10"
+                        : "border-white/5 cursor-not-allowed opacity-50"
+                    }`}
                   >
                     {attachment.title || `Attachment ${index + 1}`}
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>

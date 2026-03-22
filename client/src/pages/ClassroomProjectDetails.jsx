@@ -480,15 +480,30 @@ const ClassroomProjectDetails = () => {
                       key={`${post._id}-attachment-${index}`}
                       type="button"
                       onClick={() => {
-                        const url = URL.createObjectURL(
-                          new Blob([attachment.data] || []),
-                        );
-                        window.open(url, "_blank");
-                        setTimeout(() => URL.revokeObjectURL(url), 30000);
+                        // If attachment has a URL (Pinata), open it directly
+                        if (attachment.url) {
+                          window.open(attachment.url, "_blank");
+                        } else if (attachment.data) {
+                          // Fallback: try to create blob from data
+                          const url = URL.createObjectURL(
+                            new Blob([attachment.data], {
+                              type:
+                                attachment.mimeType ||
+                                "application/octet-stream",
+                            }),
+                          );
+                          window.open(url, "_blank");
+                          setTimeout(() => URL.revokeObjectURL(url), 30000);
+                        } else {
+                          alert("File data not available");
+                        }
                       }}
                       className="rounded border border-[#2ff5a8] bg-[#2ff5a811] px-3 py-1.5 text-xs font-medium text-[#2ff5a8] transition hover:bg-[#2ff5a822]"
                     >
-                      {attachment.title || `Attachment ${index + 1}`}
+                      📎{" "}
+                      {attachment.title ||
+                        attachment.fileName ||
+                        `Attachment ${index + 1}`}
                     </button>
                   ))}
                 </div>
