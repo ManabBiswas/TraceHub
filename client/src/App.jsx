@@ -23,7 +23,6 @@ import Dashboard from "./pages/Dashboard";
 import Resources from "./pages/Resources";
 import MyResources from "./pages/MyResources";
 import Upload from "./pages/Upload";
-import Pending from "./pages/Pending";
 import Profile from "./pages/Profile";
 import Classrooms from "./pages/Classrooms";
 import ClassroomPostDetails from "./pages/ClassroomPostDetails";
@@ -141,14 +140,6 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <Upload />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/pending"
-              element={
-                <ProtectedRoute>
-                  <Pending />
                 </ProtectedRoute>
               }
             />

@@ -3,6 +3,8 @@ import api from "../config/Api";
 import { Link as LinkIcon, Link2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
 const Resources = () => {
   const { user } = useAuth();
   const canEdit = user?.role === "PROFESSOR" || user?.role === "HOD";
@@ -73,7 +75,30 @@ const Resources = () => {
       let filtered = data;
 
       if (filter === "pending") {
+        // Get pending resources
         filtered = data.filter((r) => r.status === "pending");
+        
+        // Also fetch pending submissions from the pending API
+        try {
+          const pendingResponse = await fetch(
+            `${API_BASE_URL}/pending`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          
+          if (pendingResponse.ok) {
+            const pendingData = await pendingResponse.json();
+            // Combine pending resources with pending submissions
+            if (pendingData.resources && Array.isArray(pendingData.resources)) {
+              filtered = [...filtered, ...pendingData.resources];
+            }
+          }
+        } catch (err) {
+          console.log("Could not load pending submissions, showing resources only");
+        }
       } else if (filter === "approved") {
         filtered = data.filter((r) => r.status === "approved");
       }
@@ -177,6 +202,122 @@ const Resources = () => {
         timestamp: version.updatedAt,
         action: version.action,
       });
+    }
+  };
+
+  const handleApprove = async (resourceId) => {
+    if (!canEdit) {
+      setError("Only professors can approve submissions");
+      return;
+    }
+
+    setApproving(true);
+    try {
+      const endpoint = `${API_BASE_URL}/pending/approve-submission/${resourceId}`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ passcode: "" }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Approval failed");
+      } else {
+        setResources((prev) => prev.filter((r) => r._id !== resourceId));
+        setMessage("✓ Submission approved successfully");
+      }
+    } catch (err) {
+      setError(err.message || "Approval failed");
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleReject = async (resourceId) => {
+    if (!canEdit) {
+      setError("Only professors can reject submissions");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Are you sure you want to reject this submission? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const endpoint = `${API_BASE_URL}/pending/reject-submission/${resourceId}`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ passcode: "" }),
+      });
+
+      if (response.ok) {
+        setResources((prev) => prev.filter((r) => r._id !== resourceId));
+        setMessage("✓ Submission rejected");
+      } else {
+        const errorBody = await response.json().catch(() => ({}));
+        setError(errorBody.error || "Rejection failed");
+      }
+    } catch (err) {
+      setError("Rejection failed: " + err.message);
+    }
+  };
+
+  const downloadFile = async (resourceId, fileIndex) => {
+    try {
+      const resource = resources.find((r) => r._id === resourceId);
+      if (!resource) {
+        setError("Resource not found");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${resource.classroomId._id || resource.classroomId}/posts/${resource.postId._id || resource.postId}/submissions/${resourceId}/files/${fileIndex}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        setError(errorBody.error || "Failed to download file");
+        return;
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const fileNameMatch = disposition.match(/filename="?([^/"]+)"?/);
+      const fileName = fileNameMatch
+        ? decodeURIComponent(fileNameMatch[1])
+        : "submission-file";
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError("Download failed: " + err.message);
     }
   };
 
@@ -311,7 +452,62 @@ const Resources = () => {
                     {resource.userDepartment}
                   </p>
                 )}
+
+                {resource.githubUrl && (
+                  <div className="mt-4 border-t border-[#2ff5a838] pt-4">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[#9fc0b2]">
+                      GitHub URL
+                    </p>
+                    <a
+                      href={resource.githubUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-[#2ff5a8] hover:text-white transition"
+                    >
+                      <LinkIcon size={16} />
+                      {resource.githubUrl}
+                    </a>
+                  </div>
+                )}
+
+                {resource.files && resource.files.length > 0 && (
+                  <div className="mt-4 border-t border-[#2ff5a838] pt-4">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wide text-[#9fc0b2]">
+                      Submitted Files
+                    </p>
+                    <div className="space-y-2">
+                      {resource.files.map((fileUrl, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => downloadFile(resource._id, idx)}
+                          className="flex w-full items-center gap-2 rounded border border-[#2ff5a847] bg-[#2ff5a811] px-3 py-2 text-sm font-semibold text-[#2ff5a8] transition hover:bg-[#2ff5a822] hover:border-[#2ff5a8]"
+                        >
+                          📄 File {idx + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {resource.status === "pending" && canEdit && (
+                <div className="border-t border-[#2ff5a838] bg-[#0f160f] px-6 py-4">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleApprove(resource._id)}
+                      className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
+                    >
+                      ✓ Approve
+                    </button>
+                    <button
+                      onClick={() => handleReject(resource._id)}
+                      className="flex-1 rounded-lg border border-red-500 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/10"
+                    >
+                      ✕ Reject
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {resource.aiSummary && (
                 <div className="border-t border-[#2ff5a838] px-6 py-4">
@@ -548,61 +744,77 @@ const Resources = () => {
       )}
 
       {verificationResult && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4 z-50">
-          <div
-            className={`rounded-lg p-6 max-w-md w-full shadow-2xl border-2 ${
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="rounded-2xl bg-[#1f2925] shadow-2xl border border-[#2ff5a838] overflow-hidden max-w-md w-full">
+            {/* Header */}
+            <div className={`px-6 py-4 border-b border-[#2ff5a838] flex items-center justify-between ${
               verificationResult.verified
-                ? "bg-linear-to-br from-emerald-900/20 to-emerald-800/10 border-emerald-500"
-                : "bg-linear-to-br from-amber-900/20 to-amber-800/10 border-amber-500"
-            }`}
-          >
-            <div
-              className={`text-lg font-bold mb-4 ${
+                ? "bg-emerald-900/20"
+                : "bg-amber-900/20"
+            }`}>
+              <h3 className={`text-lg font-bold ${
                 verificationResult.verified
                   ? "text-emerald-400"
                   : "text-amber-400"
-              }`}
-            >
-              {verificationResult.verified ? "✓ Verified" : "⚠️ Demo Mode"}
+              }`}>
+                {verificationResult.verified ? "✓ Verified" : "⚠️ Demo Mode"}
+              </h3>
+              <button
+                onClick={() => setVerificationResult(null)}
+                className="text-[#8cf0c8] hover:text-[#2ff5a8] transition text-xl leading-none"
+              >
+                ×
+              </button>
             </div>
-            <p className="text-sm text-gray-200 mb-4">
-              {verificationResult.message}
-            </p>
-            {verificationResult.txId && (
-              <div className="bg-black/30 rounded p-3 mb-4 text-xs font-mono text-gray-300 break-all">
-                <p className="font-semibold text-gray-400 mb-1">
-                  Transaction ID:
+
+            {/* Content */}
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-[#bfd0c8]">
+                {verificationResult.message}
+              </p>
+              {verificationResult.txId && (
+                <div className="bg-[#0f160f] rounded-lg p-4 border border-[#2ff5a838]">
+                  <p className="text-xs font-semibold text-[#9fc0b2] mb-2 uppercase tracking-wide">
+                    Transaction ID
+                  </p>
+                  <p className="text-xs font-mono text-[#2ff5a8] break-all">
+                    {verificationResult.txId}
+                  </p>
+                </div>
+              )}
+              {verificationResult.timestamp && (
+                <p className="text-xs text-[#8cf0c8]">
+                  <strong>Recorded:</strong> {new Date(verificationResult.timestamp).toLocaleString()}
                 </p>
-                {verificationResult.txId}
-              </div>
-            )}
-            {verificationResult.timestamp && (
-              <p className="text-xs text-gray-400 mb-2">
-                <strong>Recorded:</strong>{" "}
-                {new Date(verificationResult.timestamp).toLocaleString()}
-              </p>
-            )}
-            {verificationResult.action && (
-              <p className="text-xs text-gray-400 mb-4">
-                <strong>Action:</strong> {verificationResult.action}
-              </p>
-            )}
-            {verificationResult.verified && (
-              <p className="text-xs text-gray-300 mb-4 border-t border-gray-600 pt-3">
-                This version integrity is verified on the Algorand blockchain.
-                The immutable record ensures no tampering has occurred.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => setVerificationResult(null)}
-              className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] hover:bg-[#25d991]"
-            >
-              Close
-            </button>
+              )}
+              {verificationResult.action && (
+                <p className="text-xs text-[#8cf0c8]">
+                  <strong>Action:</strong> {verificationResult.action}
+                </p>
+              )}
+              {verificationResult.verified && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                  <p className="text-xs text-emerald-300">
+                    ✓ This version integrity is verified on the Algorand blockchain. The immutable record ensures no tampering has occurred.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-[#2ff5a838] bg-[#1f292580] flex gap-3">
+              <button
+                type="button"
+                onClick={() => setVerificationResult(null)}
+                className="flex-1 rounded-lg bg-[#2ff5a8] hover:bg-[#25d991] text-[#142019] px-4 py-2 text-sm font-semibold transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -114,7 +114,7 @@ const Dashboard = () => {
 
         {/* Pending Approvals */}
         {(isProfessor || isAdmin) && (
-          <Link to="/pending" className={`${cardClass} border-[#2ff5a866]`}>
+          <Link to="/resources?filter=pending" className={`${cardClass} border-[#2ff5a866]`}>
             <Clock
               size={80}
               className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
