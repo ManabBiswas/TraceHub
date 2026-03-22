@@ -14,6 +14,7 @@ const Classrooms = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
 
   const [createClassForm, setCreateClassForm] = useState({
     name: "",
@@ -50,6 +51,13 @@ const Classrooms = () => {
   );
 
   const isTeacher = isProfessor || isAdmin;
+
+  const getPostStatus = (dueDate) => {
+    if (!dueDate) return "OPEN";
+    const deadline = new Date(dueDate);
+    const now = new Date();
+    return now > deadline ? "CLOSED" : "OPEN";
+  };
 
   const loadClassrooms = async () => {
     setLoading(true);
@@ -254,73 +262,78 @@ const Classrooms = () => {
     e.preventDefault();
     if (!selectedClassroomId) return;
 
+    setIsCreatingPost(true);
     setError("");
     setMessage("");
 
-    const allowedSubmissionTypes = [];
-    if (createPostForm.allowLink) allowedSubmissionTypes.push("LINK");
-    if (createPostForm.allowFile) allowedSubmissionTypes.push("FILE");
+    try {
+      const allowedSubmissionTypes = [];
+      if (createPostForm.allowLink) allowedSubmissionTypes.push("LINK");
+      if (createPostForm.allowFile) allowedSubmissionTypes.push("FILE");
 
-    if (createPostForm.files.length > 5) {
-      setError("You can attach up to 5 files per post");
-      return;
-    }
+      if (createPostForm.files.length > 5) {
+        setError("You can attach up to 5 files per post");
+        return;
+      }
 
-    const oversizedFile = createPostForm.files.find(
-      (file) => file.size > 5 * 1024 * 1024,
-    );
-    if (oversizedFile) {
-      setError(`File too large: ${oversizedFile.name}. Max size is 5MB each.`);
-      return;
-    }
-
-    const nonPdfFile = createPostForm.files.find(
-      (file) => file.type !== "application/pdf",
-    );
-    if (nonPdfFile) {
-      setError(
-        `Unsupported file type: ${nonPdfFile.name}. Only PDF files are allowed.`,
+      const oversizedFile = createPostForm.files.find(
+        (file) => file.size > 5 * 1024 * 1024,
       );
-      return;
+      if (oversizedFile) {
+        setError(`File too large: ${oversizedFile.name}. Max size is 5MB each.`);
+        return;
+      }
+
+      const nonPdfFile = createPostForm.files.find(
+        (file) => file.type !== "application/pdf",
+      );
+      if (nonPdfFile) {
+        setError(
+          `Unsupported file type: ${nonPdfFile.name}. Only PDF files are allowed.`,
+        );
+        return;
+      }
+
+      const payload = {
+        title: createPostForm.title,
+        body: createPostForm.body,
+        type: createPostForm.type,
+        dueDate: createPostForm.dueDate || null,
+        points: createPostForm.points ? Number(createPostForm.points) : null,
+        allowStudentSubmissions:
+          createPostForm.type === "PROJECT" || createPostForm.type === "ASSIGNMENT"
+            ? true
+            : false,
+        allowedSubmissionTypes,
+        files: createPostForm.files,
+      };
+
+      const response = await api.classrooms.createPost(
+        selectedClassroomId,
+        payload,
+      );
+
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      setMessage(response.message || "Post created");
+      setCreatePostForm({
+        title: "",
+        body: "",
+        type: "ANNOUNCEMENT",
+        dueDate: "",
+        points: "",
+        allowStudentSubmissions: true,
+        allowLink: true,
+        allowFile: true,
+        files: [],
+      });
+      await loadPosts(selectedClassroomId);
+    } finally {
+      setIsCreatingPost(false);
     }
-
-    const payload = {
-      title: createPostForm.title,
-      body: createPostForm.body,
-      type: createPostForm.type,
-      dueDate: createPostForm.dueDate || null,
-      points: createPostForm.points ? Number(createPostForm.points) : null,
-      allowStudentSubmissions:
-        createPostForm.type === "PROJECT" || createPostForm.type === "ASSIGNMENT"
-          ? true
-          : false,
-      allowedSubmissionTypes,
-      files: createPostForm.files,
-    };
-
-    const response = await api.classrooms.createPost(
-      selectedClassroomId,
-      payload,
-    );
-
-    if (response.error) {
-      setError(response.error);
-      return;
-    }
-
-    setMessage(response.message || "Post created");
-    setCreatePostForm({
-      title: "",
-      body: "",
-      type: "ANNOUNCEMENT",
-      dueDate: "",
-      points: "",
-      allowStudentSubmissions: true,
-      allowLink: true,
-      allowFile: true,
-      files: [],
-    });
-    await loadPosts(selectedClassroomId);
   };
 
   const handleGradeSubmission = async (e) => {
@@ -610,9 +623,17 @@ const Classrooms = () => {
 
                 <button
                   type="submit"
-                  className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019]"
+                  disabled={isCreatingPost}
+                  className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019] disabled:opacity-60 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 min-w-24"
                 >
-                  Post
+                  {isCreatingPost ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-[#142019] border-t-transparent rounded-full animate-spin"></div>
+                      <span>Posting...</span>
+                    </>
+                  ) : (
+                    "Post"
+                  )}
                 </button>
               </div>
 
@@ -745,59 +766,33 @@ const Classrooms = () => {
 
           <div className="space-y-3">
             {posts.map((post) => (
-              <div
+              <button
                 key={post._id}
-                className="rounded border border-white/10 bg-[#1f292580] p-3"
+                onClick={() =>
+                  navigate(
+                    post.type === "PROJECT"
+                      ? `/classrooms/${selectedClassroomId}/projects/${post._id}`
+                      : `/classrooms/${selectedClassroomId}/posts/${post._id}`,
+                  )
+                }
+                className="w-full rounded border border-white/10 bg-[#1f292580] p-3 transition hover:bg-[#2ff5a822] hover:border-[#2ff5a8] cursor-pointer"
               >
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{post.title}</p>
-                    <p className="text-xs text-[#bcd2c9]">{post.type}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="rounded border border-[#2ff5a8] px-3 py-1 text-xs"
-                      onClick={() =>
-                        navigate(
-                          post.type === "PROJECT"
-                            ? `/classrooms/${selectedClassroomId}/projects/${post._id}`
-                            : `/classrooms/${selectedClassroomId}/posts/${post._id}`,
-                        )
-                      }
-                    >
-                      Open Details
-                    </button>
-                    {isTeacher && (post.type === "ASSIGNMENT" || post.type === "PROJECT") && (
-                      <button
-                        className="rounded border border-white/20 px-3 py-1 text-xs"
-                        onClick={() => setSelectedPostId(post._id)}
-                      >
-                        Submissions ({submissions.filter(s => s.postId === post._id).length})
-                      </button>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between gap-6 mb-2">
+                  <span className="font-semibold text-[#e8f2ed] text-left flex-1">
+                    {post.title}
+                  </span>
+                  <span className="text-base font-bold text-[#bcd2c9] flex-1 text-center">{post.type.toLowerCase()}</span>
+                  <span className={`text-base font-bold flex-1 text-right ${
+                    getPostStatus(post.dueDate) === "CLOSED"
+                      ? "text-red-400"
+                      : "text-white"
+                  }`}>
+                    {getPostStatus(post.dueDate).toLowerCase()}
+                  </span>
                 </div>
 
                 <p className="text-sm text-[#d8ebe3]">{post.body}</p>
-
-                {Array.isArray(post.attachments) &&
-                  post.attachments.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {post.attachments.map((attachment, index) => (
-                        <button
-                          key={`${post._id}-attachment-${index}`}
-                          type="button"
-                          onClick={() =>
-                            handleOpenPostAttachment(post._id, index)
-                          }
-                          className="rounded border border-white/20 px-2 py-1 text-xs underline"
-                        >
-                          {attachment.title || `Attachment ${index + 1}`}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-              </div>
+              </button>
             ))}
 
             {posts.length === 0 && (
@@ -817,6 +812,7 @@ const Classrooms = () => {
             profile/auth flow to keep creating classrooms and posts.
           </p>
         )}
+
     </div>
   );
 };
