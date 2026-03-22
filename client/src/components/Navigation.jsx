@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Menu, X, LogOut, Link as LinkIcon } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
+import logoImage from "../assets/logo.png";
 
 const Navigation = () => {
   const { isAuthenticated, logout, user, isProfessor, isAdmin } = useAuth();
@@ -30,9 +31,16 @@ const Navigation = () => {
     return (
       <nav className="sticky top-0 z-50 border-b border-[#2ff5a833] bg-[#1f2925]/95 px-4 py-4 shadow-sm backdrop-blur md:px-8">
         <div className="mx-auto flex w-full max-w-360 flex-wrap items-center gap-3">
-          <div className="text-2xl font-bold tracking-tight text-slate-100">
-            <Link to="/">TraceHub</Link>
-          </div>
+          <Link to="/" className="flex items-center gap-2">
+            <img
+              src={logoImage}
+              alt="TraceHub Logo"
+              className="h-10 w-10 rounded-lg object-contain"
+            />
+            <div className="text-2xl font-bold tracking-tight text-slate-100">
+              TraceHub
+            </div>
+          </Link>
           <div className="ml-auto flex w-full flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-[#0f1613d9] p-1 md:w-auto md:rounded-full">
             <Link to="/" className={navLinkClass(isActive("/"))}>
               Home
@@ -92,9 +100,13 @@ const Navigation = () => {
       <div className="mx-auto flex w-full max-w-360 flex-wrap items-center justify-between gap-3">
         <Link
           to="/dashboard"
-          className="flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-100"
+          className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-100"
         >
-          <LinkIcon size={24} />
+          <img
+            src={logoImage}
+            alt="TraceHub Logo"
+            className="h-10 w-10 rounded-lg object-contain"
+          />
           TraceHub
         </Link>
 
