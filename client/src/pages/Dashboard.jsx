@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   BookOpen,
@@ -8,11 +8,11 @@ import {
   Sparkles,
   School,
   CreditCard,
+  Bookmark,
 } from "lucide-react";
 
 const Dashboard = () => {
   const { user, isProfessor, isAdmin, renewSubscription } = useAuth();
-  const navigate = useNavigate();
 
   const cardClass =
     "flex flex-col rounded-2xl border border-[#2ff5a838] bg-white/10 p-8 text-[#e8f2ed] shadow-2xl backdrop-blur transition hover:-translate-y-1 hover:border-[#2ff5a866]";
@@ -83,6 +83,19 @@ const Dashboard = () => {
           </p>
         </Link>
 
+        <Link to="/projects" className={cardClass}>
+          <Bookmark
+            size={80}
+            className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
+          />
+          <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
+            Approved Projects
+          </h3>
+          <p className="text-lg leading-8 text-[#bfd0c8]">
+            View verified student projects from your classrooms
+          </p>
+        </Link>
+
         {/* Upload for Professors */}
         {(isProfessor || isAdmin) && (
           <Link to="/upload" className={`${cardClass} border-[#2ff5a866]`}>
@@ -128,8 +141,6 @@ const Dashboard = () => {
             View your uploaded documents
           </p>
         </Link>
-
-
       </div>
     </div>
   );

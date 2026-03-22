@@ -28,6 +28,7 @@ import Profile from "./pages/Profile";
 import Classrooms from "./pages/Classrooms";
 import ClassroomPostDetails from "./pages/ClassroomPostDetails";
 import ClassroomProjectDetails from "./pages/ClassroomProjectDetails";
+import Projects from "./pages/Projects";
 
 function AppContent() {
   const { loading, isAuthenticated } = useAuth();
@@ -180,6 +181,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <ClassroomProjectDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/projects"
+              element={
+                <ProtectedRoute>
+                  <Projects />
                 </ProtectedRoute>
               }
             />

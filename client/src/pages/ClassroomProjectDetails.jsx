@@ -35,6 +35,10 @@ const ClassroomProjectDetails = () => {
     action: null, // "accept" or "return"
     note: "",
   });
+  const [expandedSubmissionVersions, setExpandedSubmissionVersions] = useState(
+    {},
+  );
+  const [submissionVersionHistory, setSubmissionVersionHistory] = useState({});
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -71,6 +75,29 @@ const ClassroomProjectDetails = () => {
     }
 
     setSubmissionHistory(response.versions || []);
+  };
+
+  const toggleSubmissionVersions = async (submissionId) => {
+    const isOpen = Boolean(expandedSubmissionVersions[submissionId]);
+    setExpandedSubmissionVersions((prev) => ({
+      ...prev,
+      [submissionId]: !isOpen,
+    }));
+
+    if (isOpen || submissionVersionHistory[submissionId]) return;
+
+    const response = await api.classrooms.getSubmissionHistory(
+      classroomId,
+      postId,
+      submissionId,
+    );
+
+    if (!response?.error) {
+      setSubmissionVersionHistory((prev) => ({
+        ...prev,
+        [submissionId]: response.versions || [],
+      }));
+    }
   };
 
   useEffect(() => {
@@ -917,6 +944,17 @@ const ClassroomProjectDetails = () => {
                           </div>
                         )}
 
+                      {/* View All Versions Button */}
+                      <button
+                        type="button"
+                        onClick={() => toggleSubmissionVersions(submission._id)}
+                        className="mb-3 w-full rounded border border-[#2ff5a8] px-3 py-2 text-xs font-semibold text-[#2ff5a8] hover:bg-[#2ff5a822] transition"
+                      >
+                        {expandedSubmissionVersions[submission._id]
+                          ? "▼ Hide All Versions"
+                          : "▶ View All Versions"}
+                      </button>
+
                       {(isProfessor || isAdmin) && (
                         <div className="space-y-3 border-t border-white/10 pt-3">
                           {/* For TURNED_IN submissions: Accept or Return */}
@@ -1013,6 +1051,21 @@ const ClassroomProjectDetails = () => {
                           )}
                         </div>
                       )}
+
+                      {/* Version History Display */}
+                      {expandedSubmissionVersions[submission._id] &&
+                        submissionVersionHistory[submission._id] && (
+                          <VersionHistory
+                            versionHistory={
+                              submissionVersionHistory[submission._id]
+                            }
+                            submissionId={submission._id}
+                            isProfessor={isProfessor || isAdmin}
+                            onVerify={() => {
+                              toggleSubmissionVersions(submission._id);
+                            }}
+                          />
+                        )}
                     </div>
                   ))}
               </div>
