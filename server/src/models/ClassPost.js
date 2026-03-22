@@ -24,7 +24,7 @@ const ClassPostVersionSchema = new mongoose.Schema(
     body: { type: String, default: "" },
     type: {
       type: String,
-      enum: ["ANNOUNCEMENT", "ASSIGNMENT", "PROJECT", "PROJECT"],
+      enum: ["ANNOUNCEMENT", "ASSIGNMENT", "PROJECT"],
       default: "ANNOUNCEMENT",
     },
     dueDate: { type: Date, default: null },
@@ -111,7 +111,7 @@ const ClassPostSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["ANNOUNCEMENT", "ASSIGNMENT"],
+      enum: ["ANNOUNCEMENT", "ASSIGNMENT", "PROJECT"],
       default: "ANNOUNCEMENT",
     },
     dueDate: {

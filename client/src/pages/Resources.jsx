@@ -11,7 +11,7 @@ const Resources = () => {
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("approved");
   const [openHistoryById, setOpenHistoryById] = useState({});
   const [historyById, setHistoryById] = useState({});
   const [historyLoadingById, setHistoryLoadingById] = useState({});
@@ -24,6 +24,8 @@ const Resources = () => {
   });
   const [verificationResult, setVerificationResult] = useState(null);
   const [verifyingVersionId, setVerifyingVersionId] = useState(null);
+  const [classroomSelectFocused, setClassroomSelectFocused] = useState(false);
+  const [message, setMessage] = useState("");
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -159,8 +161,6 @@ const Resources = () => {
       }));
     }
   };
-
-  const [message, setMessage] = useState("");
 
   const verifyVersionIntegrity = (version) => {
     if (!version.algorandTxId || version.algorandTxId.startsWith("DEMO_")) {

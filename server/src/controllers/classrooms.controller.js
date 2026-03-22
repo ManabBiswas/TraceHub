@@ -309,7 +309,7 @@ export const createPost = async (req, res) => {
     const resolvedAllowStudentSubmissions =
       typeof allowStudentSubmissions !== "undefined"
         ? parseBoolean(allowStudentSubmissions)
-        : postType === "ASSIGNMENT";
+        : postType === "ASSIGNMENT" || postType === "PROJECT";
 
     const resolvedSubmissionTypes = parseAllowedSubmissionTypes(
       typeof allowedSubmissionTypes === "string"
@@ -717,10 +717,10 @@ export const submitLink = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    if (post.type !== "ASSIGNMENT") {
+    if (post.type === "ANNOUNCEMENT") {
       return res
         .status(400)
-        .json({ error: "Submissions are allowed only for assignment posts" });
+        .json({ error: "Submissions are not allowed for announcements" });
     }
 
     if (!post.allowStudentSubmissions) {
@@ -812,7 +812,7 @@ export const submitLink = async (req, res) => {
 export const submitAssignment = async (req, res) => {
   try {
     const { classroomId, postId } = req.params;
-    const { link = "", text = "" } = req.body;
+    const { link = "", text = "", githubUrl = "" } = req.body;
     const files = Array.isArray(req.files) ? req.files : [];
 
     if (!isValidObjectId(classroomId) || !isValidObjectId(postId)) {
@@ -835,10 +835,10 @@ export const submitAssignment = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    if (post.type !== "ASSIGNMENT") {
+    if (post.type === "ANNOUNCEMENT") {
       return res
         .status(400)
-        .json({ error: "Submissions are allowed only for assignment posts" });
+        .json({ error: "Submissions are not allowed for announcements" });
     }
 
     if (!post.allowStudentSubmissions) {
@@ -847,7 +847,9 @@ export const submitAssignment = async (req, res) => {
       });
     }
 
-    const hasLink = typeof link === "string" && link.trim().length > 0;
+    // For PROJECT posts, store githubUrl instead of link
+    const effectiveLink = post.type === "PROJECT" ? githubUrl : link;
+    const hasLink = typeof effectiveLink === "string" && effectiveLink.trim().length > 0;
     const hasText = typeof text === "string" && text.trim().length > 0;
     const hasFiles = files.length > 0;
 
@@ -898,19 +900,28 @@ export const submitAssignment = async (req, res) => {
         postId,
         studentId: req.user._id,
         contentType,
-        link: hasLink ? link.trim() : "",
+        link: post.type === "PROJECT" ? "" : (hasLink ? effectiveLink.trim() : ""),
+        githubUrl: post.type === "PROJECT" ? (hasLink ? effectiveLink.trim() : "") : "",
         text: hasText ? text.trim() : "",
         files: storedFiles,
         status: "TURNED_IN",
+        submissionStatus: "UNDER_REVIEW",
         versionNumber: 1,
         versionHistory: [],
       });
     } else {
       submission.contentType = contentType;
-      submission.link = hasLink ? link.trim() : "";
+      if (post.type === "PROJECT") {
+        submission.githubUrl = hasLink ? effectiveLink.trim() : "";
+        submission.link = "";
+      } else {
+        submission.link = hasLink ? effectiveLink.trim() : "";
+        submission.githubUrl = "";
+      }
       submission.text = hasText ? text.trim() : "";
       submission.files = storedFiles;
       submission.status = "TURNED_IN";
+      submission.submissionStatus = "UNDER_REVIEW";
     }
 
     const nextVersion = submission.versionHistory?.length

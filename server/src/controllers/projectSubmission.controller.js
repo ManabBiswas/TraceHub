@@ -265,7 +265,7 @@ export const submitProjectFinal = async (req, res) => {
       finalTxId = process.env.ALGORAND_DEMO_FALLBACK === "true" ? `DEMO_FINAL_${Date.now()}` : "";
     }
 
-    submission.submissionStatus = "FINAL_SUBMITTED";
+    submission.submissionStatus = "UNDER_REVIEW";
     submission.aiAnalysisStatus = "NOT_STARTED";
     submission.versionNumber = nextVersion;
     submission.versionHistory.push({
@@ -294,8 +294,8 @@ export const submitProjectFinal = async (req, res) => {
       .catch((err) => console.error("AI analysis failed:", err.message));
 
     return res.status(200).json({
-      message: "Final submission received. Your work is now locked and under AI analysis.",
-      submissionStatus: "FINAL_SUBMITTED",
+      message: "Submission received! Awaiting teacher approval before final verification.",
+      submissionStatus: "UNDER_REVIEW",
       finalSubmissionTxId: finalTxId,
       revisionCycle: submission.revisionCycle,
     });
