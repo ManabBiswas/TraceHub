@@ -13,13 +13,13 @@ const Footer = () => {
           <h3 className="mb-3 text-2xl font-bold text-white">TraceHub</h3>
           <p className="mb-4 max-w-md text-sm leading-7 text-slate-300">A secure platform for publishing and verifying academic resources with blockchain proof.</p>
           <div className="mt-2 flex gap-4">
-            <a href="#github" title="GitHub" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#33433c] bg-[#23302a] text-slate-50 transition hover:-translate-y-1 hover:bg-[#2d3d36]">
+            <a href="#github" title="GitHub" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#33433c] bg-[#23302a] text-slate-50 transition hover:text-white">
               <Github size={20} />
             </a>
-            <a href="#linkedin" title="LinkedIn" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#33433c] bg-[#23302a] text-slate-50 transition hover:-translate-y-1 hover:bg-[#2d3d36]">
+            <a href="#linkedin" title="LinkedIn" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#33433c] bg-[#23302a] text-slate-50 transition hover:text-white">
               <Linkedin size={20} />
             </a>
-            <a href="#twitter" title="Twitter" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#33433c] bg-[#23302a] text-slate-50 transition hover:-translate-y-1 hover:bg-[#2d3d36]">
+            <a href="#twitter" title="Twitter" className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[#33433c] bg-[#23302a] text-slate-50 transition hover:text-white">
               <Twitter size={20} />
             </a>
           </div>
@@ -29,10 +29,10 @@ const Footer = () => {
         <div className="flex flex-col">
           <h4 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-100">Quick Links</h4>
           <ul className="space-y-2">
-            <li><Link to="/" className="text-sm text-slate-300 transition hover:text-white hover:underline">Home</Link></li>
-            <li><Link to="/resources" className="text-sm text-slate-300 transition hover:text-white hover:underline">Resources</Link></li>
-            <li><Link to="/dashboard" className="text-sm text-slate-300 transition hover:text-white hover:underline">Dashboard</Link></li>
-            <li><Link to="/profile" className="text-sm text-slate-300 transition hover:text-white hover:underline">Profile</Link></li>
+            <li><Link to="/" className="text-sm text-slate-300 transition hover:text-white">Home</Link></li>
+            <li><Link to="/resources" className="text-sm text-slate-300 transition hover:text-white">Resources</Link></li>
+            <li><Link to="/dashboard" className="text-sm text-slate-300 transition hover:text-white">Dashboard</Link></li>
+            <li><Link to="/profile" className="text-sm text-slate-300 transition hover:text-white">Profile</Link></li>
           </ul>
         </div>
 
@@ -40,10 +40,10 @@ const Footer = () => {
         <div className="flex flex-col">
           <h4 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-100">Features</h4>
           <ul className="space-y-2">
-            <li><a href="#document-upload" className="text-sm text-slate-300 transition hover:text-white hover:underline">Secure Upload</a></li>
-            <li><a href="#verification" className="text-sm text-slate-300 transition hover:text-white hover:underline">AI Analysis</a></li>
-            <li><a href="#blockchain" className="text-sm text-slate-300 transition hover:text-white hover:underline">Blockchain Proof</a></li>
-            <li><a href="#access-control" className="text-sm text-slate-300 transition hover:text-white hover:underline">Access Control</a></li>
+            <li><a href="#document-upload" className="text-sm text-slate-300 transition hover:text-white">Secure Upload</a></li>
+            <li><a href="#verification" className="text-sm text-slate-300 transition hover:text-white">AI Analysis</a></li>
+            <li><a href="#blockchain" className="text-sm text-slate-300 transition hover:text-white">Blockchain Proof</a></li>
+            <li><a href="#access-control" className="text-sm text-slate-300 transition hover:text-white">Access Control</a></li>
           </ul>
         </div>
 

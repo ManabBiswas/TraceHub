@@ -46,7 +46,7 @@ const Dashboard = () => {
             user?.teacherSubscription?.status !== "ACTIVE" && (
               <button
                 onClick={handleRenew}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-5 py-3 text-sm font-semibold text-[#142019] transition hover:bg-[#24d993]"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-5 py-3 text-sm font-semibold text-[#142019] transition btn-primary-animated"
               >
                 <CreditCard size={16} />
                 Renew Subscription

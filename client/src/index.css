@@ -3,3 +3,124 @@
 body{
     @apply bg-[#1f2925]
 }
+
+/* Button Hover Animation - Background slides from left to right */
+.btn-animated {
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.btn-animated::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: white;
+  transform: translateX(-100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+}
+
+.btn-animated:hover::before {
+  transform: translateX(0);
+}
+
+.btn-animated:hover {
+  color: black;
+}
+
+/* Logout button special styling - red background animation */
+.btn-logout-animated {
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.btn-logout-animated::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: #ef4444;
+  transform: translateX(-100%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+}
+
+.btn-logout-animated:hover::before {
+  transform: translateX(0);
+}
+
+.btn-logout-animated:hover {
+  color: white;
+}
+
+/* Primary Button Animation - Green background darkens on hover */
+.btn-primary-animated {
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+  transition: all 0.3s ease;
+}
+
+.btn-primary-animated::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: #1a9d71;
+  transform: translateX(-100%);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+}
+
+.btn-primary-animated:hover::before {
+  transform: translateX(0);
+}
+
+/* Secondary Button Animation - White text color change */
+.btn-secondary-animated {
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary-animated::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-100%);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: -1;
+}
+
+.btn-secondary-animated:hover::before {
+  transform: translateX(0);
+}
+
+.btn-secondary-animated:hover {
+  color: white;
+}
+
+/* Icon Button Animation - Subtle scale and color change */
+.btn-icon-animated {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-icon-animated:hover {
+  transform: scale(1.1);
+  color: #2ff5a8;
+}

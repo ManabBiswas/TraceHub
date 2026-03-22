@@ -17,11 +17,11 @@ const Landing = () => {
           </p>
 
           <div className="mb-12 flex flex-wrap gap-4">
-            <Link to="/register" className="inline-flex items-center gap-2 rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-6 py-3 font-semibold text-[#142019] shadow-[0_8px_28px_rgba(47,245,168,0.28)] transition hover:bg-[#24d993]">
+            <Link to="/register" className="inline-flex items-center gap-2 rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-6 py-3 font-semibold text-[#142019] shadow-[0_8px_28px_rgba(47,245,168,0.28)] transition btn-animated">
               Start With TraceHub
               <ArrowRight size={18} />
             </Link>
-            <Link to="/resources" className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-6 py-3 font-semibold text-slate-100 transition hover:bg-white/20">
+            <Link to="/resources" className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-6 py-3 font-semibold text-slate-100 transition btn-animated">
               Explore Resources
             </Link>
           </div>
@@ -115,7 +115,7 @@ const Landing = () => {
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-[#9fc0b2]">Where to start</p>
           <h2 className="mb-6 max-w-[20ch] text-4xl font-extrabold leading-tight tracking-tight text-slate-100 md:text-5xl">Move from scattered files to accountable knowledge systems</h2>
           <p className="mb-8 max-w-3xl text-lg leading-8 text-slate-300">Launch your institution on a platform where every resource is structured, discoverable, and verifiable.</p>
-          <Link to="/register" className="inline-flex items-center gap-2 rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-6 py-3 font-semibold text-[#142019] transition hover:bg-[#24d993]">
+          <Link to="/register" className="inline-flex items-center gap-2 rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-6 py-3 font-semibold text-[#142019] transition btn-animated">
             Create Your Workspace
             <ArrowRight size={18} />
           </Link>

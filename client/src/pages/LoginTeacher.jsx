@@ -78,15 +78,18 @@ const LoginTeacher = () => {
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019]"
+          className="inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019] btn-primary-animated"
         >
           {loading ? "Logging in..." : "Login as Teacher"}
         </button>
       </form>
 
-      <p className="mt-8 border-t border-[#2ff5a838] pt-6 text-center text-sm text-[#bcd2c9]">
-        New teacher? <Link to="/register/teacher">Create teacher account</Link>
-      </p>
+      <div className="mt-8 border-t border-[#2ff5a838] pt-6 space-y-3">
+        <p className="text-center text-sm text-[#bcd2c9]">New teacher?</p>
+        <Link to="/register/teacher" className="inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019] btn-primary-animated">
+          Create Teacher Account
+        </Link>
+      </div>
     </div>
   );
 };

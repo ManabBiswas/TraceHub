@@ -270,7 +270,7 @@ const MyResources = () => {
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      className="rounded bg-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#142019]"
+                      className="rounded bg-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#142019] btn-primary-animated"
                       onClick={() => {
                         void saveResourceEdit(resource._id);
                       }}
@@ -279,7 +279,7 @@ const MyResources = () => {
                     </button>
                     <button
                       type="button"
-                      className="rounded border border-white/20 px-3 py-1 text-xs text-[#d8ebe3]"
+                      className="rounded border border-white/20 px-3 py-1 text-xs text-[#d8ebe3] btn-secondary-animated"
                       onClick={cancelEdit}
                     >
                       Cancel
@@ -322,7 +322,7 @@ const MyResources = () => {
                   {canEdit && editingResourceId !== resource._id && (
                     <button
                       type="button"
-                      className="rounded-md border border-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#d8ebe3] hover:bg-[#2ff5a81a]"
+                      className="rounded-md border border-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#d8ebe3] btn-secondary-animated"
                       onClick={() => startEditResource(resource)}
                     >
                       Edit Resource
@@ -330,7 +330,7 @@ const MyResources = () => {
                   )}
                   <button
                     type="button"
-                    className="rounded-md border border-white/20 px-3 py-1 text-xs font-semibold text-[#d8ebe3] hover:border-[#2ff5a8]"
+                    className="rounded-md border border-white/20 px-3 py-1 text-xs font-semibold text-[#d8ebe3] btn-secondary-animated"
                     onClick={() => {
                       void toggleHistory(resource._id);
                     }}
@@ -473,7 +473,7 @@ const MyResources = () => {
             <button
               type="button"
               onClick={() => setVerificationResult(null)}
-              className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] hover:bg-[#25d991]"
+              className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] btn-primary-animated"
             >
               Close
             </button>

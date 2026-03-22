@@ -463,45 +463,63 @@ const ClassroomPostDetails = () => {
           )}
 
           {editingPost && (
-            <div className="mt-4 grid gap-3 rounded border border-white/10 bg-[#1f292580] p-3 md:grid-cols-2">
+            <div className="mt-4 space-y-3 rounded border border-white/10 bg-[#1f292580] p-3">
+              {(post.type === "ASSIGNMENT" || post.type === "PROJECT") && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-[#9fc0b2]">
+                      Due Date
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={postEditForm.dueDate}
+                      onChange={(e) =>
+                        setPostEditForm((prev) => ({
+                          ...prev,
+                          dueDate: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs text-[#9fc0b2]">
+                      Points
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={postEditForm.points}
+                      onChange={(e) =>
+                        setPostEditForm((prev) => ({
+                          ...prev,
+                          points: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
               <div>
-                <label className="mb-1 block text-xs text-[#9fc0b2]">
-                  Due Date
-                </label>
-                <input
-                  type="datetime-local"
-                  value={postEditForm.dueDate}
-                  onChange={(e) =>
-                    setPostEditForm((prev) => ({
-                      ...prev,
-                      dueDate: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-[#9fc0b2]">
-                  Points
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={postEditForm.points}
-                  onChange={(e) =>
-                    setPostEditForm((prev) => ({
-                      ...prev,
-                      points: e.target.value,
-                    }))
-                  }
-                  className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-xs text-[#9fc0b2]">
+                <label className="mb-2 block text-xs text-[#9fc0b2]">
                   Add Attachments (optional)
                 </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor="post-files"
+                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition btn-primary-animated"
+                  >
+                    Choose Files
+                  </label>
+                  <span className="text-xs text-[#bcd2c9]">
+                    {postEditForm.files.length > 0
+                      ? `${postEditForm.files.length} file(s) selected`
+                      : "No file chosen"}
+                  </span>
+                </div>
                 <input
+                  id="post-files"
                   type="file"
                   multiple
                   onChange={(e) =>
@@ -510,14 +528,8 @@ const ClassroomPostDetails = () => {
                       files: Array.from(e.target.files || []),
                     }))
                   }
-                  className="block w-full text-xs text-[#bcd2c9]"
+                  className="hidden"
                 />
-                {postEditForm.files.length > 0 && (
-                  <p className="mt-1 text-xs text-[#bcd2c9]">
-                    {postEditForm.files.length} file(s) will be added to this
-                    post.
-                  </p>
-                )}
               </div>
             </div>
           )}
@@ -558,7 +570,7 @@ const ClassroomPostDetails = () => {
                 <button
                   type="button"
                   onClick={() => setShowLatexEditor(false)}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition btn-secondary-animated ${
                     !showLatexEditor
                       ? "bg-[#2ff5a8] text-[#142019]"
                       : "text-[#8cf0c8] hover:bg-[#2ff5a815]"
@@ -569,7 +581,7 @@ const ClassroomPostDetails = () => {
                 <button
                   type="button"
                   onClick={() => setShowLatexEditor(true)}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition btn-secondary-animated ${
                     showLatexEditor
                       ? "bg-[#2ff5a8] text-[#142019]"
                       : "text-[#8cf0c8] hover:bg-[#2ff5a815]"
@@ -611,7 +623,7 @@ const ClassroomPostDetails = () => {
                   <div className="mb-2 flex flex-wrap items-center gap-3">
                     <label
                       htmlFor="submission-files"
-                      className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
+                      className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition btn-primary-animated"
                     >
                       Choose Files
                     </label>
@@ -635,7 +647,7 @@ const ClassroomPostDetails = () => {
                   />
                   <button
                     type="submit"
-                    className="rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019]"
+                    className="rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] btn-primary-animated"
                   >
                     Submit Assignment
                   </button>
@@ -1080,7 +1092,7 @@ const ClassroomPostDetails = () => {
                 <button
                   type="button"
                   onClick={() => setVerificationResult(null)}
-                  className="mt-4 w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] hover:bg-[#24d993]"
+                  className="mt-4 w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] btn-primary-animated"
                 >
                   Close
                 </button>

@@ -20,7 +20,7 @@ const Navigation = () => {
 
   const isActive = (path) => location.pathname === path;
   const navLinkClass = (active) =>
-    `rounded-full px-4 py-2 text-sm font-medium transition ${
+    `rounded-full px-4 py-2 text-sm font-medium transition btn-animated ${
       active
         ? "bg-[#2ff5a8] text-[#142019]"
         : "text-emerald-50 hover:bg-white/15 hover:text-white"
@@ -36,6 +36,9 @@ const Navigation = () => {
           <div className="ml-auto flex w-full flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-[#0f1613d9] p-1 md:w-auto md:rounded-full">
             <Link to="/" className={navLinkClass(isActive("/"))}>
               Home
+            </Link>
+            <Link to="/about" className={navLinkClass(isActive("/about"))}>
+              About
             </Link>
             <Link
               to="/dashboard"
@@ -56,25 +59,25 @@ const Navigation = () => {
           <div className="ml-auto flex items-center gap-2">
             <Link
               to="/login/student"
-              className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/20"
+              className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition btn-animated"
             >
               Student Login
             </Link>
             <Link
               to="/login/teacher"
-              className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/20"
+              className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-slate-100 transition btn-animated"
             >
               Teacher Login
             </Link>
             <Link
               to="/register/student"
-              className="inline-flex items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition hover:bg-[#24d993]"
+              className="inline-flex items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition btn-animated"
             >
               Student Register
             </Link>
             <Link
               to="/register/teacher"
-              className="inline-flex items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition hover:bg-[#24d993]"
+              className="inline-flex items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition btn-animated"
             >
               Teacher Register
             </Link>
@@ -96,7 +99,7 @@ const Navigation = () => {
         </Link>
 
         <button
-          className="inline-flex items-center justify-center rounded-md p-2 text-emerald-50 transition hover:bg-white/10 md:hidden"
+          className="inline-flex items-center justify-center rounded-md p-2 text-emerald-50 transition btn-icon-animated md:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
         >
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -112,6 +115,14 @@ const Navigation = () => {
               onClick={() => setMenuOpen(false)}
             >
               Home
+            </Link>
+
+            <Link
+              to="/about"
+              className={navLinkClass(isActive("/about"))}
+              onClick={() => setMenuOpen(false)}
+            >
+              About
             </Link>
 
             <Link
@@ -177,13 +188,7 @@ const Navigation = () => {
             </button>
             <button
               onClick={handleLogout}
-              onMouseEnter={() => setLogoutHovered(true)}
-              onMouseLeave={() => setLogoutHovered(false)}
-              className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition cursor-pointer ${
-                logoutHovered
-                  ? "border-red-700 bg-red-700 text-white"
-                  : "border-white/20 bg-white/10 text-slate-100"
-              }`}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold transition cursor-pointer btn-logout-animated text-slate-100"
             >
               <LogOut size={18} />
               Logout

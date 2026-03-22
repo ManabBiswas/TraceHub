@@ -13,6 +13,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
 import Landing from "./pages/Landing";
+import About from "./pages/About";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import LoginStudent from "./pages/LoginStudent";
@@ -49,6 +50,7 @@ function AppContent() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
+            <Route path="/about" element={<About />} />
             <Route
               path="/login"
               element={

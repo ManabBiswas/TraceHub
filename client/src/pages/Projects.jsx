@@ -287,7 +287,7 @@ const Projects = () => {
                                 project.postId,
                               )
                             }
-                            className="w-full border-t border-[#2ff5a838] px-6 py-3 text-xs font-semibold text-[#2ff5a8] hover:bg-[#2ff5a822] transition"
+                            className="w-full border-t border-[#2ff5a838] px-6 py-3 text-xs font-semibold text-[#2ff5a8] hover:bg-[#2ff5a822] transition btn-secondary-animated"
                           >
                             {isExpanded
                               ? "▼ Hide All Versions"
@@ -300,7 +300,7 @@ const Projects = () => {
                               <button
                                 type="button"
                                 onClick={() => verifyVersionIntegrity(project)}
-                                className="w-full text-left inline-flex items-center gap-2 text-sm font-semibold text-[#2ff5a8] hover:text-[#25d991] transition"
+                                className="w-full text-left inline-flex items-center gap-2 text-sm font-semibold text-[#2ff5a8] hover:text-[#25d991] transition btn-secondary-animated"
                               >
                                 🔐 Verify Integrity
                               </button>
@@ -399,7 +399,7 @@ const Projects = () => {
             <button
               type="button"
               onClick={() => setVerificationResult(null)}
-              className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] hover:bg-[#25d991]"
+              className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] btn-primary-animated"
             >
               Close
             </button>

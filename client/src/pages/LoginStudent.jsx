@@ -59,14 +59,17 @@ const LoginStudent = () => {
           />
         </div>
 
-        <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019]">
+        <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019] btn-primary-animated">
           {loading ? "Logging in..." : "Login as Student"}
         </button>
       </form>
 
-      <p className="mt-8 border-t border-[#2ff5a838] pt-6 text-center text-sm text-[#bcd2c9]">
-        New student? <Link to="/register/student">Create student account</Link>
-      </p>
+      <div className="mt-8 border-t border-[#2ff5a838] pt-6 space-y-3">
+        <p className="text-center text-sm text-[#bcd2c9]">New student?</p>
+        <Link to="/register/student" className="inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019] btn-primary-animated">
+          Create Student Account
+        </Link>
+      </div>
     </div>
   );
 };

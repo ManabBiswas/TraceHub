@@ -495,7 +495,7 @@ const Classrooms = () => {
             />
             <button
               type="submit"
-              className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019]"
+              className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019] btn-primary-animated"
             >
               Create
             </button>
@@ -516,7 +516,7 @@ const Classrooms = () => {
           />
           <button
             type="submit"
-            className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019]"
+            className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019] btn-primary-animated"
           >
             Join
           </button>
@@ -535,7 +535,7 @@ const Classrooms = () => {
                 key={room._id}
                 type="button"
                 onClick={() => setSelectedClassroomId(room._id)}
-                className={`w-full rounded border p-3 text-left transition ${selectedClassroomId === room._id ? "border-[#2ff5a8] bg-[#2ff5a822]" : "border-white/10 bg-[#1f292580]"}`}
+                className={`w-full rounded border p-3 text-left transition btn-secondary-animated ${selectedClassroomId === room._id ? "border-[#2ff5a8] bg-[#2ff5a822]" : "border-white/10 bg-[#1f292580]"}`}
               >
                 <p className="font-semibold">{room.name}</p>
                 <p className="text-xs text-[#bcd2c9]">Code: {room.joinCode}</p>
@@ -624,7 +624,7 @@ const Classrooms = () => {
                 <button
                   type="submit"
                   disabled={isCreatingPost}
-                  className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019] disabled:opacity-60 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 min-w-24"
+                  className="rounded bg-[#2ff5a8] px-4 py-2 font-semibold text-[#142019] disabled:opacity-60 disabled:cursor-not-allowed transition btn-primary-animated flex items-center justify-center gap-2 min-w-24"
                 >
                   {isCreatingPost ? (
                     <>
@@ -775,7 +775,7 @@ const Classrooms = () => {
                       : `/classrooms/${selectedClassroomId}/posts/${post._id}`,
                   )
                 }
-                className="w-full rounded border border-white/10 bg-[#1f292580] p-3 transition hover:bg-[#2ff5a822] hover:border-[#2ff5a8] cursor-pointer"
+                className="w-full rounded border border-white/10 bg-[#1f292580] p-3 transition hover:bg-[#2ff5a822] hover:border-[#2ff5a8] cursor-pointer btn-secondary-animated"
               >
                 <div className="flex items-center justify-between gap-6 mb-2">
                   <span className="font-semibold text-[#e8f2ed] text-left flex-1">
@@ -790,8 +790,6 @@ const Classrooms = () => {
                     {getPostStatus(post.dueDate).toLowerCase()}
                   </span>
                 </div>
-
-                <p className="text-sm text-[#d8ebe3]">{post.body}</p>
               </button>
             ))}
 

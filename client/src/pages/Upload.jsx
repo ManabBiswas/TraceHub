@@ -248,7 +248,7 @@ const Upload = () => {
           <button
             type="submit"
             disabled={loading || !file || !classroomId}
-            className="mt-6 inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993] disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-4 py-3 text-sm font-bold text-[#142019] transition btn-primary-animated disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "Uploading and Processing..." : "Upload Document"}
           </button>

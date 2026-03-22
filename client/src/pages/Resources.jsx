@@ -339,7 +339,7 @@ const Resources = () => {
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      className="rounded bg-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#142019]"
+                      className="rounded bg-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#142019] btn-primary-animated"
                       onClick={() => {
                         void saveResourceEdit(resource._id);
                       }}
@@ -348,7 +348,7 @@ const Resources = () => {
                     </button>
                     <button
                       type="button"
-                      className="rounded border border-white/20 px-3 py-1 text-xs text-[#d8ebe3]"
+                      className="rounded border border-white/20 px-3 py-1 text-xs text-[#d8ebe3] btn-secondary-animated"
                       onClick={cancelEditResource}
                     >
                       Cancel
@@ -412,7 +412,7 @@ const Resources = () => {
                   {canEdit && editingResourceId !== resource._id && (
                     <button
                       type="button"
-                      className="rounded-md border border-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#d8ebe3] hover:bg-[#2ff5a81a]"
+                      className="rounded-md border border-[#2ff5a8] px-3 py-1 text-xs font-semibold text-[#d8ebe3] btn-secondary-animated"
                       onClick={() => startEditResource(resource)}
                     >
                       Edit Resource
@@ -420,7 +420,7 @@ const Resources = () => {
                   )}
                   <button
                     type="button"
-                    className="rounded-md border border-white/20 px-3 py-1 text-xs font-semibold text-[#d8ebe3] hover:border-[#2ff5a8]"
+                    className="rounded-md border border-white/20 px-3 py-1 text-xs font-semibold text-[#d8ebe3] btn-secondary-animated"
                     onClick={() => {
                       void toggleHistory(resource._id);
                     }}
@@ -496,7 +496,7 @@ const Resources = () => {
                             <button
                               type="button"
                               onClick={() => verifyVersionIntegrity(version)}
-                              className="mt-2 w-full rounded border border-[#2ff5a8] px-2 py-1 text-xs font-semibold text-[#2ff5a8] hover:bg-[#2ff5a81a]"
+                              className="mt-2 w-full rounded border border-[#2ff5a8] px-2 py-1 text-xs font-semibold text-[#2ff5a8] btn-secondary-animated"
                             >
                               {version.algorandTxId?.startsWith("DEMO_")
                                 ? "⚠️ Demo"
@@ -577,7 +577,7 @@ const Resources = () => {
               <button
                 type="button"
                 onClick={() => setVerificationResult(null)}
-                className="flex-1 rounded-lg bg-[#2ff5a8] hover:bg-[#25d991] text-[#142019] px-4 py-2 text-sm font-semibold transition"
+                className="flex-1 rounded-lg bg-[#2ff5a8] text-[#142019] px-4 py-2 text-sm font-semibold transition btn-primary-animated"
               >
                 Close
               </button>
