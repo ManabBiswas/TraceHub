@@ -147,14 +147,6 @@ const Navigation = () => {
                 >
                   Upload
                 </Link>
-
-                <Link
-                  to="/pending"
-                  className={navLinkClass(isActive("/pending"))}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Pending
-                </Link>
               </>
             )}
           </div>

@@ -656,6 +656,43 @@ const Classrooms = () => {
                 </div>
               )}
 
+              {createPostForm.type === "ANNOUNCEMENT" && (
+                <div className="mt-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label
+                      htmlFor="announcement-files"
+                      className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-sm font-semibold text-[#142019] transition hover:-translate-y-0.5 hover:bg-[#24d993]"
+                    >
+                      Choose Files
+                    </label>
+                    <span className="text-xs text-[#bcd2c9]">
+                      {createPostForm.files.length > 0
+                        ? `${createPostForm.files.length} file(s) selected`
+                        : "No file chosen"}
+                    </span>
+                  </div>
+                  <input
+                    id="announcement-files"
+                    className="hidden"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    multiple
+                    onChange={(e) =>
+                      setCreatePostForm((prev) => ({
+                        ...prev,
+                        files: Array.from(e.target.files || []),
+                      }))
+                    }
+                  />
+                  {createPostForm.files.length > 0 && (
+                    <p className="mt-1 text-xs text-[#bcd2c9]">
+                      {createPostForm.files.length} PDF file(s) selected (max 5
+                      files, 5MB each)
+                    </p>
+                  )}
+                </div>
+              )}
+
               {(createPostForm.type === "ASSIGNMENT" || createPostForm.type === "PROJECT") && (
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
                   <label className="inline-flex items-center gap-2">
