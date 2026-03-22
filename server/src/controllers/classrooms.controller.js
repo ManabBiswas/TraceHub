@@ -3,6 +3,7 @@ import Classroom from "../models/Classroom.js";
 import ClassPost from "../models/ClassPost.js";
 import Submission from "../models/Submission.js";
 import { mintVersionProof } from "../services/algorand.service.js";
+import { uploadToDuality } from "../services/storage.service.js";
 
 const generateJoinCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -334,6 +335,25 @@ export const createPost = async (req, res) => {
       url: "",
     }));
 
+    // Upload files to Pinata and populate URLs
+    for (let i = 0; i < uploadedAttachments.length; i += 1) {
+      try {
+        const url = await uploadToDuality(
+          uploadedAttachments[i].data,
+          uploadedAttachments[i].fileName,
+        );
+        uploadedAttachments[i].url = url;
+        // Remove data field after uploading to Pinata (data is now in IPFS)
+        delete uploadedAttachments[i].data;
+      } catch (error) {
+        console.error(
+          `Failed to upload ${uploadedAttachments[i].fileName}:`,
+          error.message,
+        );
+        // Keep the data field as fallback if Pinata upload fails
+      }
+    }
+
     const mergedAttachments = [...parsedAttachments, ...uploadedAttachments];
 
     const post = new ClassPost({
@@ -617,6 +637,25 @@ export const updatePost = async (req, res) => {
       data: file.buffer,
       url: "",
     }));
+
+    // Upload files to Pinata and populate URLs
+    for (let i = 0; i < uploadedAttachments.length; i += 1) {
+      try {
+        const url = await uploadToDuality(
+          uploadedAttachments[i].data,
+          uploadedAttachments[i].fileName,
+        );
+        uploadedAttachments[i].url = url;
+        // Remove data field after uploading to Pinata (data is now in IPFS)
+        delete uploadedAttachments[i].data;
+      } catch (error) {
+        console.error(
+          `Failed to upload ${uploadedAttachments[i].fileName}:`,
+          error.message,
+        );
+        // Keep the data field as fallback if Pinata upload fails
+      }
+    }
 
     if (typeof attachments !== "undefined" || uploadedAttachments.length > 0) {
       const baseAttachments =
