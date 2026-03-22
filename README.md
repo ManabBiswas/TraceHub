@@ -3,8 +3,6 @@
 
 > A decentralized, AI-powered academic archive that solves two real problems in modern universities: fragile storage and unverifiable student work.
 
-<!-- Built for **Binary V2 Hackathon** — 36-hour sprint. -->
-
 ---
 
 ## The Problem
@@ -21,24 +19,21 @@ By the time a B.Tech student graduates, every project they built has vanished on
 
 TraceHub is a unified upload platform for academic institutions. When a professor or student uploads a document:
 
-1. The file is stored on **Pinata** (decentralized storage) — no single point of failure.
-2. A 0-ALGO transaction is minted on **Algorand Testnet**, encoding the file hash, uploader name, and timestamp into the blockchain as an immutable record.
-3. The document text is routed through **Requesty** to a large language model, which auto-generates AI summaries, flashcards (for professors), or a tech-stack analysis (for students).
-4. Everything is saved to **MongoDB Atlas** and surfaced on a clean public dashboard.
+1. The file is stored on **Pinata (IPFS)** — content-addressed, decentralized storage where the file's URL is its own hash, making tampering self-evident.
+2. A 0-ALGO transaction is minted on **Algorand Testnet**, encoding a SHA-256 content hash, uploader name, and timestamp into the blockchain as an immutable record.
+3. Everything is saved to **MongoDB Atlas** and surfaced on a clean dashboard.
 
-The result: a permanent, AI-enriched, blockchain-timestamped academic archive.
+The result: a permanent, blockchain-timestamped academic archive where any tampering with MongoDB is cryptographically detectable — the on-chain hash won't match.
 
 ---
 
 ## Tracks Targeted
 
-| Track | Prize | How we qualify |
-|---|---|---|
-| Education | ₹10K | Reimagining project submission and the college LMS |
-| Algorand | $500 | Blockchain as a tamper-proof publication notary |
-<!-- | Duality | $200 | Decentralized storage for academic files |
-| Requesty | $150 | Dynamic AI routing for document analysis | -->
-| AI/ML | ₹10K | Semantic analysis of academic documents |
+| Track |  How we qualify |
+|---|---|
+| Education | Reimagining project submission and the college LMS |
+| Algorand| Blockchain as a tamper-proof publication notary with content hash verification |
+
 
 ---
 
@@ -46,11 +41,10 @@ The result: a permanent, AI-enriched, blockchain-timestamped academic archive.
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 18, Vite, TailwindCSS |
+| Frontend | React 19, Vite, TailwindCSS |
 | Backend | Node.js, Express.js |
 | Database | MongoDB Atlas + Mongoose |
-| AI Routing | Requesty API |
-<!-- | Decentralized Storage | Duality Network | -->
+| Decentralized Storage | Pinata (IPFS pinning service) |
 | Blockchain Notary | Algorand Testnet (algosdk) |
 | File Parsing | multer, pdf-parse |
 
@@ -59,16 +53,21 @@ The result: a permanent, AI-enriched, blockchain-timestamped academic archive.
 ## Features (MVP)
 
 ### Professor Flow
-- Upload a PDF syllabus or lecture notes
-- File stored permanently on Duality
-- Algorand TXID generated as proof of publication timestamp
-- AI auto-generates a 3-sentence summary and 5 flashcards for students
+- Upload a PDF syllabus or lecture notes (up to 10MB)
+- File pinned permanently to IPFS via Pinata; content-addressed URL stored
+- Algorand TXID generated as cryptographic proof of publication timestamp
+- SHA-256 content hash written to the blockchain for tamper detection
+
 
 ### Student Flow
-- Upload a project README or abstract as PDF
-- File stored on Duality, timestamped on Algorand
-- AI extracts the tech stack and writes an architecture summary
-- Public profile page with an "Algorand Verified" badge linking to the testnet explorer
+- Submit a GitHub repository URL for project analysis
+- Professor approves → file pinned to IPFS → Algorand verification TX minted → project visible in public gallery
+- Blockchain-verified portfolio artifact shareable with recruiters
+
+### Tamper Detection
+- On approval, a SHA-256 hash of the resource metadata is written into the Algorand transaction note field
+- `GET /api/verify/:txid` fetches the live transaction from Algorand's indexer, recomputes the hash from MongoDB, and returns `VALID`, `TAMPERED`, or `NOT_FOUND`
+- Any modification to MongoDB after approval is cryptographically detectable
 
 ---
 
@@ -76,34 +75,61 @@ The result: a permanent, AI-enriched, blockchain-timestamped academic archive.
 
 ```
 tracehub-hackathon/
-├── client/                   # React + Vite frontend
+├── client/                        # React + Vite frontend
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── UploadForm.jsx
-│   │   │   ├── ResourceCard.jsx
-│   │   │   ├── FlashcardViewer.jsx
-│   │   │   └── AlgorandBadge.jsx
+│   │   │   ├── Navigation.jsx
+│   │   │   ├── VersionHistory.jsx
+│   │   │   ├── ProjectAnalysisCard.jsx
+│   │   │   └── LatexEditor.jsx
 │   │   ├── pages/
-│   │   │   ├── Home.jsx        # Global library feed
-│   │   │   └── ResourceDetail.jsx
-│   │   └── App.jsx
+│   │   │   ├── Landing.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── Resources.jsx
+│   │   │   ├── Classrooms.jsx
+│   │   │   ├── ClassroomPostDetails.jsx
+│   │   │   ├── ClassroomProjectDetails.jsx
+│   │   │   ├── Upload.jsx
+│   │   │   ├── Projects.jsx
+│   │   │   └── Profile.jsx
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx
+│   │   └── config/
+│   │       └── Api.jsx
 │   └── package.json
 │
-├── server/                   # Node.js + Express backend
-│   ├── models/
-│   │   └── Resource.js        # Mongoose schema
-│   ├── routes/
-│   │   └── upload.js          # POST /api/upload
-│   ├── services/
-│   │   ├── requesty.service.js
-│   │   ├── algorand.service.js
-│   │   └── duality.service.js
-│   ├── middleware/
-│   │   └── upload.middleware.js  # multer config
-│   ├── utils/
-│   │   └── pdfParser.js
-│   ├── .env                   # NOT committed to git
-│   └── index.js
+├── server/                        # Node.js + Express backend
+│   ├── src/
+│   │   ├── models/
+│   │   │   ├── User.js
+│   │   │   ├── Resource.js
+│   │   │   ├── Classroom.js
+│   │   │   ├── ClassPost.js
+│   │   │   ├── Submission.js
+│   │   │   └── ProjectMetadata.js
+│   │   ├── routes/
+│   │   │   ├── auth.js
+│   │   │   ├── upload.js
+│   │   │   ├── resources.js
+│   │   │   ├── classrooms.js
+│   │   │   ├── pending.js
+│   │   │   ├── verify.js
+│   │   │   └── projectSubmissions.js
+│   │   ├── services/
+│   │   │   ├── algorand.service.js   # Blockchain notary
+│   │   │   ├── storage.service.js    # Pinata/IPFS upload
+│   │   ├── middlewares/
+│   │   │   ├── auth.middleware.js
+│   │   │   ├── upload.middleware.js
+│   │   │   └── submissionUpload.middleware.js
+│   │   └── utils/
+│   │       ├── pdfParser.js
+│   │       ├── githubFetcher.js
+│   │       └── contentHash.js        # SHA-256 tamper detection
+│   ├── scripts/
+│   │   └── seedUsersWithResources.js
+│   ├── .env.example
+│   └── server.js
 │
 └── README.md
 ```
@@ -112,9 +138,6 @@ tracehub-hackathon/
 
 ## Quick Start
 
-See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for full step-by-step instructions including environment variables, Algorand wallet setup, and running both servers.
-
-**Short version:**
 ```bash
 # Clone
 git clone <repo-url> && cd tracehub-hackathon
@@ -126,28 +149,48 @@ cd server && npm install && npm run dev
 cd client && npm install && npm run dev
 ```
 
-Frontend runs on `http://localhost:5173`, backend on `http://localhost:3000`.
+Frontend: `http://localhost:5173` — Backend: `http://localhost:3000`
 
 ---
 
-<!-- ## Demo
+## Environment Variables
 
-> Upload flow → AI analysis → Algorand verification
+Create `server/.env` — see `server/.env.example` for the full template.
 
-1. Open the app and select role: **Professor** or **Student**
-2. Fill in your name, title, and upload a PDF (max 5MB)
-3. Watch the pipeline run: file parsed → AI analysis → Duality upload → Algorand mint
-4. View your resource card with the green **Verified on Algorand** badge
-5. Click the badge to open the live transaction on the Algorand Testnet Explorer
+```env
+# Core
+PORT=3000
+MONGODB_URL=mongodb+srv://<user>:<password>@cluster.mongodb.net/tracehub
+JWT_SECRET=your_jwt_secret
 
---- -->
+# Decentralized Storage (Pinata/IPFS)
+PINATA_JWT=your_pinata_jwt_here
 
-<!-- ## Limitations (Hackathon MVP)
+# Blockchain (Algorand Testnet)
+ALGORAND_ADMIN_MNEMONIC=word1 word2 ... word25
+ALGOD_SERVER=https://testnet-api.algonode.cloud
+ALGOD_PORT=443
+ALGOD_TOKEN=xxxx
 
-- PDF uploads only, max 5MB
-- Algorand Testnet only (not Mainnet)
-- No user authentication — uploader name is a plain text field
-- No forking/lineage system in this release (planned for v2)
-- AI originality score is based on architectural analysis of the abstract, not a plagiarism check -->
+# Demo mode (skips real blockchain calls for fast demo)
+ALGORAND_DEMO_FALLBACK=false
+```
+
+**Getting your keys:**
+
+- **Pinata:** Free tier at [app.pinata.cloud](https://app.pinata.cloud) → API Keys → New Key → copy the JWT
+- **Algorand wallet:** Generate a testnet keypair, fund it at the [Algorand Testnet Dispenser](https://testnet.algoexplorer.io/dispenser)
 
 ---
+
+## How Tamper Detection Works
+
+```
+Upload → SHA-256 hash of metadata → written to Algorand TX note field
+                                              ↓
+GET /api/verify/:txid → fetch TX from Algorand indexer
+                      → recompute hash from MongoDB
+                      → compare → VALID / TAMPERED / NOT_FOUND
+```
+
+Any change to MongoDB after the blockchain record is created produces a hash mismatch, proving tampering. The blockchain record itself is immutable.
