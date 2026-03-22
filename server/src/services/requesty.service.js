@@ -5,69 +5,77 @@ import axios from "axios";
 // ─────────────────────────────────────────────────────────────────────────────
 
 function cleanJSON(raw) {
-  // Remove ```json, ```javascript, ``` wrappers and excess whitespace
   let cleaned = raw
-    .replace(/^```\w*\n?/, "") // Remove opening code fence with optional language
-    .replace(/\n?```$/, ""); // Remove closing code fence
-  
-  // Remove leading/trailing whitespace and try to find JSON object
+    .replace(/^```\w*\n?/, "")
+    .replace(/\n?```$/, "");
   cleaned = cleaned.trim();
-  
-  // If wrapped in extra quotes, remove them
   if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
     cleaned = cleaned.slice(1, -1);
   }
-  
   return cleaned;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOVED TO: Use aiRouting.service.js instead for Groq + Gemini fallback
+// PROMPTS — anti-hallucination, strictly grounded in provided text
 // ─────────────────────────────────────────────────────────────────────────────
-// This file is DEPRECATED. Use the new dual-provider system in aiRouting.service.js
 
 const PROFESSOR_PROMPT = (text) => `
-You are an academic assistant. Analyze this syllabus/lecture notes and return ONLY a JSON object 
-with no markdown, no preamble. Format:
+You are an academic assistant. Analyze this syllabus/lecture notes and return ONLY a JSON object
+with no markdown, no preamble.
+
+RULES:
+- Base your answer ONLY on the text provided below.
+- Do not add information that is not present in the text.
+
+Format:
 {
-  "summary": "3-sentence summary of the document",
+  "summary": "3-sentence summary of the document based strictly on its content",
   "tags": ["tag1", "tag2", "tag3"],
   "flashcards": [
-    { "q": "Question", "a": "Answer" }
+    { "q": "Question directly from content", "a": "Answer directly from content" }
   ]
 }
+
 Limit to 5 flashcards. Document text:
 ---
 ${text.substring(0, 4000)}
 `;
 
 const STUDENT_PROMPT = (text) => `
-You are a technical evaluator. Analyze this project README/abstract and return ONLY a JSON object 
-with no markdown, no preamble. Format:
+You are a technical evaluator. Analyze this project README/abstract and return ONLY a JSON object
+with no markdown, no preamble.
+
+CRITICAL RULES:
+1. Only include technologies in "techStack" that are EXPLICITLY named in the text below.
+2. Do NOT guess or infer technologies. If React is not mentioned, do not include it.
+3. originalityScore should reflect architectural complexity described, not assumed.
+
+Format:
 {
-  "summary": "2-sentence architecture summary",
-  "techStack": ["Tech1", "Tech2"],
+  "summary": "2-sentence architecture summary based only on what is written below",
+  "techStack": ["only techs EXPLICITLY named in the text below"],
   "tags": ["tag1", "tag2"],
-  "originalityScore": 75
+  "originalityScore": 70
 }
-originalityScore is 0-100 based on architectural complexity and novelty described. Document:
+
+originalityScore is 0-100 based on complexity actually described (not assumed).
+
+Document:
 ---
 ${text.substring(0, 4000)}
 `;
 
 const MOCK_PROFESSOR = {
-  summary:
-    "Document uploaded successfully. AI analysis unavailable. The document contains academic content relevant to the uploaded material.",
+  summary: "Document uploaded successfully. AI analysis unavailable. The document contains academic content relevant to the uploaded material.",
   tags: ["uploaded"],
-  flashcards: []
+  flashcards: [],
 };
 
 const MOCK_STUDENT = {
-  summary:
-    "Project uploaded successfully. Technical analysis unavailable at this moment.",
-  techStack: ["Backend", "Frontend"],
+  summary: "Project uploaded successfully. Technical analysis unavailable at this moment.",
+  techStack: [], // Honest empty array, not a hallucinated list
   tags: ["uploaded"],
-  originalityScore: 70
+  originalityScore: 50,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,7 +89,7 @@ async function callGroq(prompt, maxTokens = 1000) {
       model: "mixtral-8x7b-32768",
       messages: [{ role: "user", content: prompt }],
       max_tokens: maxTokens,
-      temperature: 0.3,
+      temperature: 0.1, // Low temperature for factual extraction
     },
     {
       headers: {
@@ -98,19 +106,13 @@ async function callGemini(prompt, maxTokens = 1000) {
   const response = await axios.post(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
-      contents: [
-        {
-          parts: [{ text: prompt }],
-        },
-      ],
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         maxOutputTokens: maxTokens,
-        temperature: 0.3,
+        temperature: 0.1, // Low temperature for factual extraction
       },
     },
-    {
-      timeout: 15000,
-    }
+    { timeout: 15000 }
   );
   return response.data.candidates[0].content.parts[0].text;
 }
@@ -137,13 +139,13 @@ async function analyzeDocument(text, role) {
       ? {
           summary: parsed.summary,
           tags: parsed.tags || [],
-          flashcards: parsed.flashcards || []
+          flashcards: parsed.flashcards || [],
         }
       : {
           summary: parsed.summary,
           techStack: parsed.techStack || [],
           tags: parsed.tags || [],
-          originalityScore: parsed.originalityScore || null
+          originalityScore: parsed.originalityScore || null,
         };
   } catch (error) {
     console.error("Document analysis failed:", error.message);

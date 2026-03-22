@@ -1,6 +1,6 @@
-import axios from "axios";
 import ProjectMetadata from "../models/ProjectMetadata.js";
 import Submission from "../models/Submission.js";
+import { fetchGitHubReadme } from "../utils/githubFetcher.js";
 import {
   extractMetadataWithFallback,
   extractFeatureVectorWithFallback,
@@ -8,13 +8,18 @@ import {
 
 /**
  * Project Analysis Service - Plagiarism Detection Pipeline
- * 
+ *
+ * THE FIX: We now fetch the actual GitHub README before sending anything
+ * to the AI. Without this, the AI only has the URL string and is forced
+ * to hallucinate tech stacks based on guesswork.
+ *
  * Flow:
- * 1. Extract metadata (Groq → Gemini fallback)
- * 2. Generate feature vector (Groq → Gemini fallback)
- * 3. Compare with ALL existing projects sequentially
- * 4. Calculate plagiarism risk
- * 5. Store results for professor review (PROFESSOR decides, not automated)
+ * 1. Fetch README from GitHub (source of truth)
+ * 2. Extract metadata from README content (Groq → Gemini fallback)
+ * 3. Generate feature vector from README content (Groq → Gemini fallback)
+ * 4. Compare with ALL existing projects sequentially
+ * 5. Calculate plagiarism risk
+ * 6. Store results for professor review (PROFESSOR decides, not automated)
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,12 +76,10 @@ function computeFeatureSimilarity(vectorA, vectorB) {
   }
 
   // ── Complexity signal ──────────────────────────────────────────────────
-  const complexA =
-    vectorA.complexitySignals?.estimatedComplexity || 0.5;
-  const complexB =
-    vectorB.complexitySignals?.estimatedComplexity || 0.5;
+  const complexA = vectorA.complexitySignals?.estimatedComplexity || 0.5;
+  const complexB = vectorB.complexitySignals?.estimatedComplexity || 0.5;
   const complexDiff = Math.abs(complexA - complexB);
-  const complexScore = 1 - complexDiff; // 0-1 based on proximity
+  const complexScore = 1 - complexDiff;
   matchScore += complexScore * 2;
   totalWeight += 2;
 
@@ -87,34 +90,22 @@ function computeFeatureSimilarity(vectorA, vectorB) {
 // SEQUENTIAL COMPARISON WITH ALL EXISTING PROJECTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function findSimilarProjectsSequential(
-  featureVector,
-  postId,
-  excludeSubmissionId
-) {
+async function findSimilarProjectsSequential(featureVector, postId, excludeSubmissionId) {
   console.log("🔍 Starting sequential similarity comparison...");
 
   const allMetadata = await ProjectMetadata.find({
     postId,
     submissionId: { $ne: excludeSubmissionId },
     status: "READY",
-  }).select(
-    "submissionId projectTitle techStack featureVector codeComplexitySignals"
-  );
+  }).select("submissionId projectTitle techStack featureVector codeComplexitySignals");
 
-  console.log(
-    `📊 Comparing against ${allMetadata.length} existing projects...\n`
-  );
+  console.log(`📊 Comparing against ${allMetadata.length} existing projects...\n`);
 
   const results = [];
 
-  // ── SEQUENTIAL COMPARISON (one by one) ─────────────────────────────────
   for (let i = 0; i < allMetadata.length; i++) {
     const existing = allMetadata[i];
-    const score = computeFeatureSimilarity(
-      featureVector,
-      existing.featureVector
-    );
+    const score = computeFeatureSimilarity(featureVector, existing.featureVector);
 
     const verdict =
       score >= 0.92
@@ -126,9 +117,7 @@ async function findSimilarProjectsSequential(
         : "DIFFERENT";
 
     console.log(
-      `  [${i + 1}/${allMetadata.length}] ${existing.projectTitle}: ${
-        score.toFixed(3)
-      } → ${verdict}`
+      `  [${i + 1}/${allMetadata.length}] ${existing.projectTitle}: ${score.toFixed(3)} → ${verdict}`
     );
 
     results.push({
@@ -140,7 +129,6 @@ async function findSimilarProjectsSequential(
     });
   }
 
-  // Filter and sort by similarity
   const filtered = results
     .filter((r) => r.verdict !== "DIFFERENT")
     .sort((a, b) => b.similarityScore - a.similarityScore)
@@ -160,13 +148,9 @@ async function enrichSimilarityReport(report) {
   const enriched = await Promise.all(
     report.map(async (item) => {
       try {
-        const submission = await Submission.findById(
-          item.comparedSubmissionId
-        ).select("studentId");
+        const submission = await Submission.findById(item.comparedSubmissionId).select("studentId");
         if (submission) {
-          const student = await User.findById(submission.studentId).select(
-            "name email"
-          );
+          const student = await User.findById(submission.studentId).select("name email");
           item.studentName = student?.name || student?.email || "Unknown";
         }
       } catch {
@@ -177,6 +161,27 @@ async function enrichSimilarityReport(report) {
   );
 
   return enriched;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FETCH README WITH GRACEFUL FALLBACK
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function fetchReadmeSafely(githubUrl) {
+  if (!githubUrl) {
+    console.warn("⚠️  No GitHub URL provided — skipping README fetch");
+    return null;
+  }
+
+  try {
+    console.log(`📖 Fetching README from: ${githubUrl}`);
+    const readme = await fetchGitHubReadme(githubUrl);
+    console.log(`✓ README fetched (${readme.length} chars)`);
+    return readme;
+  } catch (err) {
+    console.warn(`⚠️  Could not fetch README: ${err.message}`);
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -196,9 +201,9 @@ async function analyzeProjectSubmission(
       throw new Error(`Submission ${submissionId} not found`);
     }
 
-    // ── Step 1: Create/update metadata record ─────────────────────────────
     console.log(`\n📝 === PLAGIARISM DETECTION PIPELINE ===`);
     console.log(`📝 Starting analysis for submission ${submissionId}`);
+
     let metadata = await ProjectMetadata.findOne({ submissionId });
     if (!metadata) {
       metadata = new ProjectMetadata({
@@ -212,20 +217,21 @@ async function analyzeProjectSubmission(
     }
     await metadata.save();
 
-    // ── Step 2: Prepare project summary ───────────────────────────────────
-    const projectSummary = `
-Title: ${submission.text?.substring(0, 200) || "Project"}
-GitHub: ${githubUrl}
-PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
-    `.trim();
+    // ── THE KEY FIX: Fetch the actual README FIRST ────────────────────────
+    // Without this, AI only gets the URL string and hallucinates tech stacks.
+    console.log("\n📖 [STEP 0] Fetching actual README content from GitHub...");
+    const readmeContent = await fetchReadmeSafely(githubUrl);
 
-    // ── Step 3: Extract metadata with AI fallback (Groq → Gemini) ────────
-    console.log("\n🤖 [STEP 1] Extracting metadata...");
-    console.log("    Trying Groq first, fallback to Gemini 2.5");
-    const extractedMetadata = await extractMetadataWithFallback(
-      projectSummary,
-      githubUrl
-    );
+    if (!readmeContent) {
+      console.warn("⚠️  README unavailable — analysis will use minimal context");
+      console.warn("   Tech stack will be empty (honest) rather than hallucinated");
+    } else {
+      console.log(`✓ README ready for AI analysis (${readmeContent.length} chars)`);
+    }
+
+    // ── Step 1: Extract metadata using actual README content ──────────────
+    console.log("\n🤖 [STEP 1] Extracting metadata from README...");
+    const extractedMetadata = await extractMetadataWithFallback(readmeContent, githubUrl);
 
     if (extractedMetadata) {
       metadata.projectTitle = extractedMetadata.projectTitle;
@@ -238,46 +244,36 @@ PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
         hasTests: extractedMetadata.hasTests,
         hasDockerfile: extractedMetadata.hasDockerfile,
         hasCI: extractedMetadata.hasCI,
-        hasReadme: extractedMetadata.hasReadme,
+        hasReadme: readmeContent !== null,
         estimatedComplexity: extractedMetadata.estimatedComplexity,
       };
       console.log(`✓ Metadata extracted: "${metadata.projectTitle}"`);
-    } else {
-      console.warn("⚠️  Metadata extraction failed, continuing with vector analysis");
+      console.log(`  Tech stack: [${metadata.techStack.join(", ")}]`);
     }
 
-    // ── Step 4: Store metadata in database ────────────────────────────────
+    // ── Step 2: Store metadata ────────────────────────────────────────────
     console.log("\n💾 [STEP 2] Storing metadata...");
     await metadata.save();
-    console.log("✓ Metadata stored in database");
 
-    // ── Step 5: Generate feature vector with AI fallback ──────────────────
-    console.log("\n🧠 [STEP 3] Generating feature vector...");
-    console.log("    Trying Groq first, fallback to Gemini 2.5");
-    const featureVector = await extractFeatureVectorWithFallback(
-      projectSummary,
-      githubUrl
-    );
+    // ── Step 3: Generate feature vector from actual README content ─────────
+    console.log("\n🧠 [STEP 3] Generating feature vector from README...");
+    const featureVector = await extractFeatureVectorWithFallback(readmeContent, githubUrl);
     metadata.featureVector = featureVector;
     await metadata.save();
     console.log("✓ Feature vector generated and stored");
 
-    // ── Step 6: SEQUENTIAL comparison with all existing projects ──────────
+    // ── Step 4: Sequential comparison with existing projects ───────────────
     let similarityReport = [];
     if (featureVector) {
       console.log(`\n🔎 [STEP 4] PLAGIARISM DETECTION - Comparing with all existing projects...`);
-      const similarities = await findSimilarProjectsSequential(
-        featureVector,
-        postId,
-        submissionId
-      );
+      const similarities = await findSimilarProjectsSequential(featureVector, postId, submissionId);
       similarityReport = await enrichSimilarityReport(similarities);
       metadata.similarityReport = similarityReport;
       await metadata.save();
       console.log(`✓ Similarity comparison complete`);
     }
 
-    // ── Step 7: Calculate plagiarism risk assessment ──────────────────────
+    // ── Step 5: Risk assessment ───────────────────────────────────────────
     console.log(`\n📊 [STEP 5] Risk Assessment...`);
     const maxSimilarity =
       similarityReport.length > 0
@@ -287,12 +283,9 @@ PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
     if (maxSimilarity >= 0.92) {
       metadata.riskLevel = "HIGH";
       metadata.riskFactors = [
-        `🚨 ALERT: Project appears nearly identical to another (${Math.round(
-          maxSimilarity * 100
-        )}% match)`,
+        `🚨 ALERT: Project appears nearly identical to another (${Math.round(maxSimilarity * 100)}% match)`,
       ];
       console.log(`   🚨 HIGH PLAGIARISM RISK DETECTED`);
-      console.log(`   Recommendation: PROFESSOR MUST REVIEW MANUALLY`);
     } else if (maxSimilarity >= 0.80 || similarityReport.length >= 2) {
       metadata.riskLevel = "MEDIUM";
       metadata.riskFactors = [
@@ -300,42 +293,29 @@ PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
         `Highest similarity: ${Math.round(maxSimilarity * 100)}%`,
       ];
       console.log(`   ⚠️  MEDIUM PLAGIARISM RISK DETECTED`);
-      console.log(`   Recommendation: PROFESSOR SHOULD VERIFY`);
     } else {
       metadata.riskLevel = "LOW";
       metadata.riskFactors = [];
       console.log(`   ✓ Low plagiarism risk`);
-      console.log(`   Recommendation: Likely original work`);
     }
 
-    // ── Step 8: Save final analysis ──────────────────────────────────────
     metadata.status = "READY";
     metadata.analyzedAt = new Date();
     await metadata.save();
+
     console.log(`\n✅ Analysis complete for submission ${submissionId}`);
-    console.log(`🔐 Result stored. Waiting for PROFESSOR MANUAL REVIEW.`);
     console.log(`========================================\n`);
-
     return metadata;
-  } catch (error) {
-    console.error(
-      `\n❌ Project analysis failed for ${submissionId}:`,
-      error.message
-    );
 
-    // Mark as failed but let submission go to UNDER_REVIEW
+  } catch (error) {
+    console.error(`\n❌ Project analysis failed for ${submissionId}:`, error.message);
     await ProjectMetadata.findOneAndUpdate(
       { submissionId },
       { status: "FAILED", analyzedAt: new Date() }
     );
-
     throw error;
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EXPORT
-// ─────────────────────────────────────────────────────────────────────────────
 
 export {
   analyzeProjectSubmission,
