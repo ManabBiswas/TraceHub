@@ -8,7 +8,7 @@ const SubmissionVersionFileSchema = new mongoose.Schema(
     size: { type: Number, default: 0, min: 0 },
     hasBinaryData: { type: Boolean, default: false },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // ── Version snapshot schema (tracks each significant event) ──────────────────
@@ -22,6 +22,7 @@ const SubmissionVersionSchema = new mongoose.Schema(
       enum: [
         "DRAFT_SAVE",
         "FINAL_SUBMIT",
+        "TURNED_IN",
         "REJECTED_FOR_REVISION",
         "REVISION_DRAFT",
         "REVISION_FINAL",
@@ -29,6 +30,7 @@ const SubmissionVersionSchema = new mongoose.Schema(
         "GRADE",
         "CREATE",
         "UPDATE",
+        "PERMANENTLY_REJECTED",
       ],
       required: true,
     },
@@ -66,7 +68,7 @@ const SubmissionVersionSchema = new mongoose.Schema(
     // Revision cycle tracking
     revisionCycle: { type: Number, default: 1 },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // ── Binary file storage (for PDFs) ─────────────────────────────────────────
@@ -92,7 +94,7 @@ const SubmissionFileSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // ── Main submission schema ─────────────────────────────────────────────────
@@ -120,12 +122,11 @@ const SubmissionSchema = new mongoose.Schema(
       enum: [
         "DRAFT",
         "FINAL_SUBMITTED",
+        "TURNED_IN",
         "UNDER_REVIEW",
         "REJECTED_FOR_REVISION",
         "VERIFIED",
         "PERMANENTLY_REJECTED",
-        "TURNED_IN",
-        "RETURNED",
       ],
       default: "DRAFT",
     },
@@ -162,7 +163,12 @@ const SubmissionSchema = new mongoose.Schema(
     projectVerification: {
       decision: {
         type: String,
-        enum: ["PENDING", "VERIFIED", "REJECTED_FOR_REVISION", "PERMANENTLY_REJECTED"],
+        enum: [
+          "PENDING",
+          "VERIFIED",
+          "REJECTED_FOR_REVISION",
+          "PERMANENTLY_REJECTED",
+        ],
         default: "PENDING",
       },
       verifiedBy: { type: String },
@@ -196,7 +202,7 @@ const SubmissionSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // ── Indexes ────────────────────────────────────────────────────────────────

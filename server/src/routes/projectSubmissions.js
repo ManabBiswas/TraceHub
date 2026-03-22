@@ -4,10 +4,13 @@ import submissionUpload from "../middlewares/submissionUpload.middleware.js";
 import {
   saveProjectDraft,
   submitProjectFinal,
+  turnInProject,
   verifyProject,
   rejectForRevision,
   permanentlyRejectProject,
+  getAllProjectSubmissions,
   getMyProjectSubmission,
+  getSubmissionVersionHistory,
   getProjectAnalysisReport,
 } from "../controllers/projectSubmission.controller.js";
 
@@ -21,38 +24,53 @@ router.post(
   authMiddleware,
   roleGuard("STUDENT"),
   submissionUpload.array("files", 1),
-  saveProjectDraft
+  saveProjectDraft,
 );
 
 router.post("/final", authMiddleware, roleGuard("STUDENT"), submitProjectFinal);
 
+router.post("/turn-in", authMiddleware, roleGuard("STUDENT"), turnInProject);
+
 // ── Professor routes ───────────────────────────────────────────────────────
+router.get(
+  "",
+  authMiddleware,
+  roleGuard("PROFESSOR", "HOD"),
+  getAllProjectSubmissions,
+);
+
+router.get(
+  "/:submissionId/history",
+  authMiddleware,
+  getSubmissionVersionHistory,
+);
+
 router.post(
   "/:submissionId/verify",
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
-  verifyProject
+  verifyProject,
 );
 
 router.post(
   "/:submissionId/reject-for-revision",
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
-  rejectForRevision
+  rejectForRevision,
 );
 
 router.post(
   "/:submissionId/reject-permanently",
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
-  permanentlyRejectProject
+  permanentlyRejectProject,
 );
 
 router.get(
   "/:submissionId/analysis",
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
-  getProjectAnalysisReport
+  getProjectAnalysisReport,
 );
 
 export default router;

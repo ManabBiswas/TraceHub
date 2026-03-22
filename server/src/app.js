@@ -1,6 +1,8 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
 
 import uploadRouter from "./routes/upload.js";
 import authRouter from "./routes/auth.js";
@@ -41,6 +43,8 @@ app.use(
 // ── Body parsers ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
+app.use(helmet());
+app.use(morgan("tiny"));
 app.use(cookieParser());
 
 // Health check — DB + Algorand status visible to judges

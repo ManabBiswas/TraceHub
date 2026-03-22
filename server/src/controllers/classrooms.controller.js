@@ -309,7 +309,7 @@ export const createPost = async (req, res) => {
     const resolvedAllowStudentSubmissions =
       typeof allowStudentSubmissions !== "undefined"
         ? parseBoolean(allowStudentSubmissions)
-        : postType === "ASSIGNMENT";
+        : postType === "ASSIGNMENT" || postType === "PROJECT";
 
     const resolvedSubmissionTypes = parseAllowedSubmissionTypes(
       typeof allowedSubmissionTypes === "string"
@@ -717,10 +717,10 @@ export const submitLink = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    if (post.type !== "ASSIGNMENT") {
+    if (post.type === "ANNOUNCEMENT") {
       return res
         .status(400)
-        .json({ error: "Submissions are allowed only for assignment posts" });
+        .json({ error: "Submissions are not allowed for announcements" });
     }
 
     if (!post.allowStudentSubmissions) {
@@ -812,7 +812,7 @@ export const submitLink = async (req, res) => {
 export const submitAssignment = async (req, res) => {
   try {
     const { classroomId, postId } = req.params;
-    const { link = "", text = "" } = req.body;
+    const { link = "", text = "", githubUrl = "" } = req.body;
     const files = Array.isArray(req.files) ? req.files : [];
 
     if (!isValidObjectId(classroomId) || !isValidObjectId(postId)) {
@@ -835,10 +835,10 @@ export const submitAssignment = async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    if (post.type !== "ASSIGNMENT") {
+    if (post.type === "ANNOUNCEMENT") {
       return res
         .status(400)
-        .json({ error: "Submissions are allowed only for assignment posts" });
+        .json({ error: "Submissions are not allowed for announcements" });
     }
 
     if (!post.allowStudentSubmissions) {
@@ -847,7 +847,10 @@ export const submitAssignment = async (req, res) => {
       });
     }
 
-    const hasLink = typeof link === "string" && link.trim().length > 0;
+    // For PROJECT posts, store githubUrl instead of link
+    const effectiveLink = post.type === "PROJECT" ? githubUrl : link;
+    const hasLink =
+      typeof effectiveLink === "string" && effectiveLink.trim().length > 0;
     const hasText = typeof text === "string" && text.trim().length > 0;
     const hasFiles = files.length > 0;
 
@@ -898,19 +901,30 @@ export const submitAssignment = async (req, res) => {
         postId,
         studentId: req.user._id,
         contentType,
-        link: hasLink ? link.trim() : "",
+        link:
+          post.type === "PROJECT" ? "" : hasLink ? effectiveLink.trim() : "",
+        githubUrl:
+          post.type === "PROJECT" ? (hasLink ? effectiveLink.trim() : "") : "",
         text: hasText ? text.trim() : "",
         files: storedFiles,
         status: "TURNED_IN",
+        submissionStatus: "UNDER_REVIEW",
         versionNumber: 1,
         versionHistory: [],
       });
     } else {
       submission.contentType = contentType;
-      submission.link = hasLink ? link.trim() : "";
+      if (post.type === "PROJECT") {
+        submission.githubUrl = hasLink ? effectiveLink.trim() : "";
+        submission.link = "";
+      } else {
+        submission.link = hasLink ? effectiveLink.trim() : "";
+        submission.githubUrl = "";
+      }
       submission.text = hasText ? text.trim() : "";
       submission.files = storedFiles;
       submission.status = "TURNED_IN";
+      submission.submissionStatus = "UNDER_REVIEW";
     }
 
     const nextVersion = submission.versionHistory?.length
@@ -1254,6 +1268,74 @@ export const updateSubmission = async (req, res) => {
       submission,
     });
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET VERIFIED PROJECTS FOR CLASSROOM
+// Any classroom member can view verified/public projects
+// ─────────────────────────────────────────────────────────────────────────────
+export const getVerifiedProjects = async (req, res) => {
+  try {
+    const { classroomId } = req.params;
+
+    if (!isValidObjectId(classroomId)) {
+      return res.status(400).json({ error: "Invalid classroomId" });
+    }
+
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    // Check if user is a member of the classroom
+    if (!canAccessClassroom(classroom, req.user._id)) {
+      return res.status(403).json({
+        error: "You are not a member of this classroom",
+      });
+    }
+
+    // Get all verified submissions with PROJECT posts
+    const verifiedSubmissions = await Submission.find({
+      classroomId,
+      submissionStatus: "VERIFIED",
+      isPublic: true,
+    })
+      .select("-files.data")
+      .populate("studentId", "name email")
+      .populate("postId", "title type points dueDate")
+      .sort({ publicApprovedAt: -1 });
+
+    const projects = verifiedSubmissions.map((sub) => ({
+      _id: sub._id,
+      studentName: sub.studentId?.name || "Unknown",
+      studentEmail: sub.studentId?.email || "",
+      studentId: sub.studentId?._id,
+      postTitle: sub.postId?.title || "Untitled",
+      postId: sub.postId?._id,
+      submissionStatus: sub.submissionStatus,
+      versionNumber: sub.versionNumber,
+      revisionCycle: sub.revisionCycle,
+      githubUrl: sub.githubUrl,
+      files:
+        sub.files?.map((f) => ({
+          fileName: f.fileName,
+          mimeType: f.mimeType,
+          size: f.size,
+        })) || [],
+      publishedAt: sub.publicApprovedAt,
+      projectVerification: sub.projectVerification,
+    }));
+
+    return res.json({
+      classroomId,
+      classroomName: classroom.name,
+      verifiedProjects: projects,
+      count: projects.length,
+    });
+  } catch (error) {
+    console.error("getVerifiedProjects error:", error);
     return res.status(500).json({ error: error.message });
   }
 };

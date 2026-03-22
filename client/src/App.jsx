@@ -27,6 +27,7 @@ import Pending from "./pages/Pending";
 import Profile from "./pages/Profile";
 import Classrooms from "./pages/Classrooms";
 import ClassroomPostDetails from "./pages/ClassroomPostDetails";
+import ClassroomProjectDetails from "./pages/ClassroomProjectDetails";
 
 function AppContent() {
   const { loading, isAuthenticated } = useAuth();
@@ -171,6 +172,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <ClassroomPostDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/classrooms/:classroomId/projects/:postId"
+              element={
+                <ProtectedRoute>
+                  <ClassroomProjectDetails />
                 </ProtectedRoute>
               }
             />
