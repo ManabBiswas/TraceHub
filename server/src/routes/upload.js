@@ -18,7 +18,7 @@ const isImage = (mimetype) => mimetype.startsWith("image/");
  * Extract a text string from an uploaded buffer.
  * - PDF  → use pdf-parse
  * - Image → return a descriptive placeholder so the AI prompt still gets
- *           something meaningful (vision analysis via Requesty is a v2 feature)
+ *           something meaningful (vision analysis via Groq/Gemini is a v2 feature)
  */
 async function extractFileText(buffer, mimetype, originalname) {
   if (mimetype === "application/pdf") {
@@ -91,7 +91,7 @@ router.post(
       try {
         aiData = await analyzeDocument(rawText, "Professor");
       } catch (e) {
-        console.error("Requesty failed, using mock:", e.message);
+        console.error("Document analysis failed, using mock:", e.message);
         aiData = {
           summary: "AI analysis unavailable.",
           tags: [],
@@ -199,7 +199,7 @@ router.post("/github", upload.none(), async (req, res) => {
     try {
       aiData = await analyzeDocument(rawText, "Student");
     } catch (e) {
-      console.error("Requesty failed, using mock:", e.message);
+      console.error("Document analysis failed, using mock:", e.message);
       aiData = {
         summary: "AI analysis unavailable.",
         tags: [],

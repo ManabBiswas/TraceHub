@@ -50,7 +50,7 @@ const ProjectMetadataSchema = new mongoose.Schema(
       estimatedComplexity: { type: Number, default: 0.5, min: 0, max: 1 },
     },
 
-    // ── Feature Vector for Similarity (Requesty-generated, not embeddings) ──
+    // ── Feature Vector for Similarity (Groq/Gemini-generated, not embeddings) ──
     // This is NOT a traditional embedding — it's a structured feature set
     // that we can use for similarity comparison without Atlas Vector Search
     featureVector: {

@@ -69,7 +69,7 @@ const ResourceSchema = new mongoose.Schema({
   // GitHub field (for student submissions)
   githubUrl: { type: String }, // Optional: GitHub repo URL
 
-  // AI-generated fields (populated after Requesty call)
+  // AI-generated fields (populated after Groq/Gemini call)
   aiSummary: { type: String },
   aiTags: [{ type: String }],
   aiFlashcards: [{ q: String, a: String }], // Professor only

@@ -1,189 +1,21 @@
 import axios from "axios";
 import ProjectMetadata from "../models/ProjectMetadata.js";
 import Submission from "../models/Submission.js";
+import {
+  extractMetadataWithFallback,
+  extractFeatureVectorWithFallback,
+} from "./aiRouting.service.js";
 
 /**
- * Hackathon-optimized project analysis service
- * Uses Requesty for ALL AI operations (feature vectors, not embeddings)
- * Avoids Atlas Vector Search dependency — feature vectors computed locally
+ * Project Analysis Service - Plagiarism Detection Pipeline
+ * 
+ * Flow:
+ * 1. Extract metadata (Groq → Gemini fallback)
+ * 2. Generate feature vector (Groq → Gemini fallback)
+ * 3. Compare with ALL existing projects sequentially
+ * 4. Calculate plagiarism risk
+ * 5. Store results for professor review (PROFESSOR decides, not automated)
  */
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EXTRACT PROJECT FEATURE VECTOR using Requesty
-// This replaces traditional embeddings with a structured feature set
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function extractProjectFeatureVector(githubUrl, projectSummary) {
-  const prompt = `
-Analyze this GitHub project and return ONLY a JSON object with no markdown, no preamble, no code blocks.
-These features will be used for similarity comparison between student projects.
-Be precise and consistent — similar projects should receive similar scores.
-
-GitHub URL: ${githubUrl}
-Project Summary:
-${projectSummary.substring(0, 5000)}
-
-Return this exact JSON structure:
-{
-  "domainScores": {
-    "webDevelopment": 0.0,
-    "machineLearning": 0.0,
-    "dataScience": 0.0,
-    "mobileApp": 0.0,
-    "devops": 0.0,
-    "gameDev": 0.0,
-    "embedded": 0.0,
-    "blockchain": 0.0
-  },
-  "techStackFingerprint": {
-    "usesReact": false,
-    "usesVue": false,
-    "usesAngular": false,
-    "usesNodeJs": false,
-    "usesPython": false,
-    "usesJava": false,
-    "usesGo": false,
-    "usesMongoDB": false,
-    "usesPostgres": false,
-    "usesMySQL": false,
-    "usesRedis": false,
-    "usesDocker": false,
-    "usesKubernetes": false,
-    "usesTensorflow": false,
-    "usesPytorch": false,
-    "usesOpenCV": false,
-    "usesFirebase": false,
-    "usesAWS": false,
-    "usesExpress": false,
-    "usesDjango": false,
-    "usesFlask": false
-  },
-  "architectureType": {
-    "isMVC": false,
-    "isMicroservices": false,
-    "isMonolith": false,
-    "isServerless": false,
-    "isEventDriven": false,
-    "isPipeline": false
-  },
-  "problemDomain": {
-    "isAttendanceSystem": false,
-    "isEcommerce": false,
-    "isChatApp": false,
-    "isRecommendation": false,
-    "isObjectDetection": false,
-    "isFaceRecognition": false,
-    "isNaturalLanguage": false,
-    "isGameProject": false,
-    "isPortfolio": false,
-    "isInventoryManagement": false,
-    "isHealthcare": false,
-    "isEducation": false,
-    "isFinance": false,
-    "isSocialNetwork": false,
-    "isAnalytics": false
-  },
-  "complexitySignals": {
-    "hasAuthentication": false,
-    "hasPaymentIntegration": false,
-    "hasRealTimeFeatures": false,
-    "hasMLModel": false,
-    "hasAPIIntegration": false,
-    "hasDatabaseDesign": false,
-    "hasDeployment": false,
-    "hasTests": false,
-    "estimatedComplexity": 0.5
-  }
-}
-
-ALL numeric values between 0.0 and 1.0.
-domainScores should sum to approximately 1.0.
-estimatedComplexity: 0.0 = trivial, 1.0 = very complex.
-Boolean values must be true or false (no null).
-`;
-
-  try {
-    const response = await axios.post(
-      "https://router.requesty.ai/v1/chat/completions",
-      {
-        model: "claude-3-5-sonnet",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 800,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.REQUESTY_API_KEY}`,
-        },
-      }
-    );
-
-    const raw = response.data.choices[0].message.content;
-    const featureVector = JSON.parse(raw);
-    
-    return featureVector;
-  } catch (error) {
-    console.error(
-      "Feature vector extraction failed:",
-      error.response?.status,
-      error.message
-    );
-    return null;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// EXTRACT PROJECT METADATA using Requesty
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function extractProjectMetadata(projectSummary, githubUrl) {
-  const prompt = `
-Analyze this student project and extract metadata. Return ONLY a JSON object with no markdown, no code blocks.
-
-Project Summary:
-${projectSummary.substring(0, 4000)}
-
-GitHub URL: ${githubUrl}
-
-Return this exact JSON (all fields required):
-{
-  "projectTitle": "Clear project name",
-  "oneLiner": "One sentence description",
-  "summary": "2-3 sentence technical summary",
-  "techStack": ["Tech1", "Tech2", "Tech3"],
-  "architecture": "Brief architecture description",
-  "primaryLanguage": "Python|JavaScript|Java|Go|Rust|etc",
-  "hasTests": true,
-  "hasDockerfile": true,
-  "hasCI": true,
-  "hasReadme": true,
-  "estimatedComplexity": 0.65
-}
-
-All fields required. estimatedComplexity: 0.0-1.0.
-`;
-
-  try {
-    const response = await axios.post(
-      "https://router.requesty.ai/v1/chat/completions",
-      {
-        model: "claude-3-5-sonnet",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 600,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.REQUESTY_API_KEY}`,
-        },
-      }
-    );
-
-    const raw = response.data.choices[0].message.content;
-    return JSON.parse(raw);
-  } catch (error) {
-    console.error("Metadata extraction failed:", error.message);
-    return null;
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPUTE SIMILARITY BETWEEN TWO FEATURE VECTORS (local, no API calls)
@@ -252,18 +84,16 @@ function computeFeatureSimilarity(vectorA, vectorB) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FIND SIMILAR PROJECTS (find all with meaningful similarity without API calls)
+// SEQUENTIAL COMPARISON WITH ALL EXISTING PROJECTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function findSimilarProjects(
+async function findSimilarProjectsSequential(
   featureVector,
   postId,
   excludeSubmissionId
 ) {
-  const ProjectMetadata = (await import("../models/ProjectMetadata.js"))
-    .default;
+  console.log("🔍 Starting sequential similarity comparison...");
 
-  // Get all projects for this assignment that have been analyzed
   const allMetadata = await ProjectMetadata.find({
     postId,
     submissionId: { $ne: excludeSubmissionId },
@@ -272,40 +102,59 @@ async function findSimilarProjects(
     "submissionId projectTitle techStack featureVector codeComplexitySignals"
   );
 
-  const results = allMetadata
-    .map((existing) => {
-      const score = computeFeatureSimilarity(
-        featureVector,
-        existing.featureVector
-      );
-      return {
-        comparedSubmissionId: existing.submissionId,
-        projectTitle: existing.projectTitle,
-        similarityScore: score,
-        techStack: existing.techStack,
-        verdict:
-          score >= 0.92
-            ? "IDENTICAL"
-            : score >= 0.80
-            ? "VERY_SIMILAR"
-            : score >= 0.65
-            ? "SIMILAR"
-            : "DIFFERENT",
-      };
-    })
-    .filter((r) => r.verdict !== "DIFFERENT") // only report meaningful matches
+  console.log(
+    `📊 Comparing against ${allMetadata.length} existing projects...\n`
+  );
+
+  const results = [];
+
+  // ── SEQUENTIAL COMPARISON (one by one) ─────────────────────────────────
+  for (let i = 0; i < allMetadata.length; i++) {
+    const existing = allMetadata[i];
+    const score = computeFeatureSimilarity(
+      featureVector,
+      existing.featureVector
+    );
+
+    const verdict =
+      score >= 0.92
+        ? "IDENTICAL"
+        : score >= 0.80
+        ? "VERY_SIMILAR"
+        : score >= 0.65
+        ? "SIMILAR"
+        : "DIFFERENT";
+
+    console.log(
+      `  [${i + 1}/${allMetadata.length}] ${existing.projectTitle}: ${
+        score.toFixed(3)
+      } → ${verdict}`
+    );
+
+    results.push({
+      comparedSubmissionId: existing.submissionId,
+      projectTitle: existing.projectTitle,
+      similarityScore: score,
+      techStack: existing.techStack,
+      verdict,
+    });
+  }
+
+  // Filter and sort by similarity
+  const filtered = results
+    .filter((r) => r.verdict !== "DIFFERENT")
     .sort((a, b) => b.similarityScore - a.similarityScore)
     .slice(0, 5);
 
-  return results;
+  console.log(`\n✓ Comparison complete. Found ${filtered.length} similar projects.\n`);
+  return filtered;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET STUDENT NAMES FOR SIMILARITY REPORT
+// ENRICH SIMILARITY REPORT WITH STUDENT NAMES
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function enrichSimilarityReport(report) {
-  const Submission = (await import("../models/Submission.js")).default;
   const User = (await import("../models/User.js")).default;
 
   const enriched = await Promise.all(
@@ -331,7 +180,7 @@ async function enrichSimilarityReport(report) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN ANALYSIS ORCHESTRATOR
+// MAIN ORCHESTRATOR - PLAGIARISM DETECTION PIPELINE
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function analyzeProjectSubmission(
@@ -342,14 +191,14 @@ async function analyzeProjectSubmission(
   githubUrl
 ) {
   try {
-    const Submission = (await import("../models/Submission.js")).default;
-
     const submission = await Submission.findById(submissionId);
     if (!submission) {
       throw new Error(`Submission ${submissionId} not found`);
     }
 
-    // Create or update metadata record
+    // ── Step 1: Create/update metadata record ─────────────────────────────
+    console.log(`\n📝 === PLAGIARISM DETECTION PIPELINE ===`);
+    console.log(`📝 Starting analysis for submission ${submissionId}`);
     let metadata = await ProjectMetadata.findOne({ submissionId });
     if (!metadata) {
       metadata = new ProjectMetadata({
@@ -363,14 +212,17 @@ async function analyzeProjectSubmission(
     }
     await metadata.save();
 
-    // ── Step 1: Extract metadata from project ────────────────────────────
+    // ── Step 2: Prepare project summary ───────────────────────────────────
     const projectSummary = `
 Title: ${submission.text?.substring(0, 200) || "Project"}
 GitHub: ${githubUrl}
 PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
     `.trim();
 
-    const extractedMetadata = await extractProjectMetadata(
+    // ── Step 3: Extract metadata with AI fallback (Groq → Gemini) ────────
+    console.log("\n🤖 [STEP 1] Extracting metadata...");
+    console.log("    Trying Groq first, fallback to Gemini 2.5");
+    const extractedMetadata = await extractMetadataWithFallback(
       projectSummary,
       githubUrl
     );
@@ -389,29 +241,44 @@ PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
         hasReadme: extractedMetadata.hasReadme,
         estimatedComplexity: extractedMetadata.estimatedComplexity,
       };
+      console.log(`✓ Metadata extracted: "${metadata.projectTitle}"`);
+    } else {
+      console.warn("⚠️  Metadata extraction failed, continuing with vector analysis");
     }
 
-    // ── Step 2: Generate feature vector for similarity analysis ──────────
-    const featureVector = await extractProjectFeatureVector(
-      githubUrl,
-      projectSummary
+    // ── Step 4: Store metadata in database ────────────────────────────────
+    console.log("\n💾 [STEP 2] Storing metadata...");
+    await metadata.save();
+    console.log("✓ Metadata stored in database");
+
+    // ── Step 5: Generate feature vector with AI fallback ──────────────────
+    console.log("\n🧠 [STEP 3] Generating feature vector...");
+    console.log("    Trying Groq first, fallback to Gemini 2.5");
+    const featureVector = await extractFeatureVectorWithFallback(
+      projectSummary,
+      githubUrl
     );
     metadata.featureVector = featureVector;
+    await metadata.save();
+    console.log("✓ Feature vector generated and stored");
 
-    // ── Step 3: Find similar projects ──────────────────────────────────
+    // ── Step 6: SEQUENTIAL comparison with all existing projects ──────────
     let similarityReport = [];
     if (featureVector) {
-      const similarities = await findSimilarProjects(
+      console.log(`\n🔎 [STEP 4] PLAGIARISM DETECTION - Comparing with all existing projects...`);
+      const similarities = await findSimilarProjectsSequential(
         featureVector,
         postId,
         submissionId
       );
       similarityReport = await enrichSimilarityReport(similarities);
+      metadata.similarityReport = similarityReport;
+      await metadata.save();
+      console.log(`✓ Similarity comparison complete`);
     }
 
-    metadata.similarityReport = similarityReport;
-
-    // ── Assess risk based on similarities ──────────────────────────────
+    // ── Step 7: Calculate plagiarism risk assessment ──────────────────────
+    console.log(`\n📊 [STEP 5] Risk Assessment...`);
     const maxSimilarity =
       similarityReport.length > 0
         ? Math.max(...similarityReport.map((r) => r.similarityScore))
@@ -419,29 +286,44 @@ PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
 
     if (maxSimilarity >= 0.92) {
       metadata.riskLevel = "HIGH";
-      metadata.riskFactors = ["Project appears nearly identical to another"];
+      metadata.riskFactors = [
+        `🚨 ALERT: Project appears nearly identical to another (${Math.round(
+          maxSimilarity * 100
+        )}% match)`,
+      ];
+      console.log(`   🚨 HIGH PLAGIARISM RISK DETECTED`);
+      console.log(`   Recommendation: PROFESSOR MUST REVIEW MANUALLY`);
     } else if (maxSimilarity >= 0.80 || similarityReport.length >= 2) {
       metadata.riskLevel = "MEDIUM";
       metadata.riskFactors = [
-        "Multiple similar projects detected",
+        `Multiple similar projects detected`,
         `Highest similarity: ${Math.round(maxSimilarity * 100)}%`,
       ];
+      console.log(`   ⚠️  MEDIUM PLAGIARISM RISK DETECTED`);
+      console.log(`   Recommendation: PROFESSOR SHOULD VERIFY`);
     } else {
       metadata.riskLevel = "LOW";
       metadata.riskFactors = [];
+      console.log(`   ✓ Low plagiarism risk`);
+      console.log(`   Recommendation: Likely original work`);
     }
 
-    // ── Save and return ────────────────────────────────────────────────
+    // ── Step 8: Save final analysis ──────────────────────────────────────
     metadata.status = "READY";
     metadata.analyzedAt = new Date();
     await metadata.save();
+    console.log(`\n✅ Analysis complete for submission ${submissionId}`);
+    console.log(`🔐 Result stored. Waiting for PROFESSOR MANUAL REVIEW.`);
+    console.log(`========================================\n`);
 
     return metadata;
   } catch (error) {
-    console.error("Project analysis failed:", error.message);
+    console.error(
+      `\n❌ Project analysis failed for ${submissionId}:`,
+      error.message
+    );
 
     // Mark as failed but let submission go to UNDER_REVIEW
-    // Professor can still review manually
     await ProjectMetadata.findOneAndUpdate(
       { submissionId },
       { status: "FAILED", analyzedAt: new Date() }
@@ -457,9 +339,7 @@ PDF Report: ${submission.files?.length > 0 ? "Provided" : "None"}
 
 export {
   analyzeProjectSubmission,
-  extractProjectFeatureVector,
-  extractProjectMetadata,
   computeFeatureSimilarity,
-  findSimilarProjects,
+  findSimilarProjectsSequential,
   enrichSimilarityReport,
 };
