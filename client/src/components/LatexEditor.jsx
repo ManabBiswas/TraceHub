@@ -360,11 +360,21 @@ export default function LatexEditor({ onSubmit, initialContent = "" }) {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Submit LaTeX source
+  // Submit LaTeX source with word count
   // ─────────────────────────────────────────────────────────────────────────
   function handleSubmit() {
     if (onSubmit) {
-      onSubmit(content);
+      // Calculate word count (rough estimate)
+      const wordCount = content
+        .replace(/\\[a-z]+/g, "") // Remove LaTeX commands
+        .replace(/[{}]/g, "") // Remove braces
+        .split(/\s+/) // Split by whitespace
+        .filter((word) => word.length > 0).length;
+
+      onSubmit({
+        latexSource: content,
+        wordCount: Math.max(wordCount, 1),
+      });
     }
   }
 

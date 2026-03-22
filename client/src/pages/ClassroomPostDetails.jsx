@@ -40,6 +40,8 @@ const ClassroomPostDetails = () => {
   });
   const [showLatexEditor, setShowLatexEditor] = useState(false);
   const [latexContent, setLatexContent] = useState("");
+  const [latexPreview, setLatexPreview] = useState(null);
+  const [showLatexModal, setShowLatexModal] = useState(false);
 
   const formatDateTime = (value) => {
     if (!value) return "-";
@@ -130,6 +132,126 @@ const ClassroomPostDetails = () => {
       });
     }
   };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Render LaTeX content to HTML (same logic as editor)
+  // ─────────────────────────────────────────────────────────────────────────
+  const renderLatexToHtml = (latexSource) => {
+    let html = latexSource
+      .replace(/\\maketitle/, "")
+      .replace(/\\documentclass\{[^}]*\}/, "")
+      .replace(/\\usepackage\{[^}]*\}/g, "")
+      .replace(/\\geometry\{[^}]*\}/g, "")
+      .replace(/\\begin{document}/, "")
+      .replace(/\\end{document}/, "");
+
+    // Titles and metadata
+    html = html.replace(/\\title\{([^}]*)\}/g, "<h1>$1</h1>");
+    html = html.replace(/\\author\{([^}]*)\}/g, "<p><em>$1</em></p>");
+    html = html.replace(/\\date\{([^}]*)\}/g, "<p><small>$1</small></p>");
+
+    // Sections
+    html = html.replace(/\\section\*?\{([^}]*)\}/g, "<h2>$1</h2>");
+    html = html.replace(/\\subsection\*?\{([^}]*)\}/g, "<h3>$1</h3>");
+
+    // Text formatting
+    html = html.replace(/\\textbf\{([^}]*)\}/g, "<strong>$1</strong>");
+    html = html.replace(/\\textit\{([^}]*)\}/g, "<em>$1</em>");
+    html = html.replace(/\\texttt\{([^}]*)\}/g, "<code>$1</code>");
+
+    // Abstract
+    html = html.replace(
+      /\\begin{abstract}([\s\S]*?)\\end{abstract}/g,
+      "<blockquote><p>$1</p></blockquote>"
+    );
+
+    // Lists
+    html = html.replace(/\\begin{itemize}/, "<ul>");
+    html = html.replace(/\\end{itemize}/, "</ul>");
+    html = html.replace(/\\item\s+/g, "<li>");
+    html = html.replace(/\n(?=\\item|\\end{itemize})/g, "</li>\n");
+
+    // Parse math with placeholders
+    const displayMathPlaceholders = [];
+    html = html.replace(/\$\$([\s\S]*?)\$\$/g, (match, expr) => {
+      try {
+        if (window.katex) {
+          const rendered = window.katex.renderToString(expr.trim(), {
+            throwOnError: true,
+          });
+          displayMathPlaceholders.push(
+            `<div class="my-2 text-center">${rendered}</div>`
+          );
+        } else {
+          displayMathPlaceholders.push(
+            `<div class="my-2 p-2 text-center text-sm text-gray-400">$$${expr}$$</div>`
+          );
+        }
+      } catch {
+        displayMathPlaceholders.push(
+          `<div class="my-2 p-2 bg-red-900/20 text-red-300 rounded text-sm">Math error</div>`
+        );
+      }
+      return `__DISPLAY_MATH_${displayMathPlaceholders.length - 1}__`;
+    });
+
+    const inlineMathPlaceholders = [];
+    html = html.replace(/\$([^$\n]+?)\$/g, (match, expr) => {
+      if (expr.includes("__DISPLAY_MATH_") || expr.includes("__INLINE_MATH_")) {
+        return match;
+      }
+      try {
+        if (window.katex) {
+          const rendered = window.katex.renderToString(expr.trim(), {
+            throwOnError: true,
+          });
+          inlineMathPlaceholders.push(
+            `<span>${rendered}</span>`
+          );
+        } else {
+          inlineMathPlaceholders.push(`<span>$${expr}$</span>`);
+        }
+      } catch {
+        return match;
+      }
+      return `__INLINE_MATH_${inlineMathPlaceholders.length - 1}__`;
+    });
+
+    displayMathPlaceholders.forEach((placeholder, idx) => {
+      html = html.replace(`__DISPLAY_MATH_${idx}__`, placeholder);
+    });
+
+    inlineMathPlaceholders.forEach((placeholder, idx) => {
+      html = html.replace(`__INLINE_MATH_${idx}__`, placeholder);
+    });
+
+    return html || "<p><em>Empty document</em></p>";
+  };
+
+  const openLatexPreview = (latexText) => {
+    // Extract LaTeX source from the submission text
+    const match = latexText.match(/\[LaTeX Document[^\n]*\]\n\n([\s\S]*)/);
+    const source = match ? match[1] : latexText;
+    setLatexPreview(source);
+    setShowLatexModal(true);
+  };
+
+  // Load KaTeX for LaTeX rendering
+  useEffect(() => {
+    if (!window.katex) {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js";
+      script.async = true;
+      script.onload = () => {
+        const styleLink = document.createElement("link");
+        styleLink.rel = "stylesheet";
+        styleLink.href =
+          "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css";
+        document.head.appendChild(styleLink);
+      };
+      document.head.appendChild(script);
+    }
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -261,17 +383,22 @@ const ClassroomPostDetails = () => {
     }
   };
 
-  const handleLatexSubmit = async ({ latexSource, wordCount }) => {
+  const handleLatexSubmit = async (submitData) => {
     setError("");
     setMessage("");
 
     try {
+      // Handle both direct string and object format
+      const { latexSource, wordCount } = typeof submitData === "string"
+        ? { latexSource: submitData, wordCount: 0 }
+        : submitData || { latexSource: "", wordCount: 0 };
+
       const response = await api.classrooms.submitAssignment(
         classroomId,
         post._id,
         {
           link: "",
-          text: `[LaTeX Document — ${wordCount} words]\n\n${latexSource}`,
+          text: `[LaTeX Document — ${wordCount || 0} words]\n\n${latexSource}`,
           files: [],
         },
       );
@@ -826,10 +953,22 @@ const ClassroomPostDetails = () => {
                                   </button>
                                 )}
                                 {version.text && (
-                                  <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
-                                    {version.text.substring(0, 50)}
-                                    {version.text.length > 50 ? "..." : ""}
-                                  </p>
+                                  <>
+                                    {version.text.includes("[LaTeX Document") ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => openLatexPreview(version.text)}
+                                        className="mt-0.5 inline-block rounded bg-[#2ff5a8]/20 hover:bg-[#2ff5a8]/30 border border-[#2ff5a838] px-2 py-1 text-xs font-semibold text-[#8cf0c8] transition"
+                                      >
+                                        📝 {version.text.split("\n\n")[0].substring(0, 50)}...
+                                      </button>
+                                    ) : (
+                                      <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                        {version.text.substring(0, 50)}
+                                        {version.text.length > 50 ? "..." : ""}
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                                 {version.files && version.files.length > 0 && (
                                   <div className="mt-0.5">
@@ -944,10 +1083,22 @@ const ClassroomPostDetails = () => {
                               </p>
                             )}
                             {version.text && (
-                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
-                                {version.text.substring(0, 50)}
-                                {version.text.length > 50 ? "..." : ""}
-                              </p>
+                              <>
+                                {version.text.includes("[LaTeX Document") ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openLatexPreview(version.text)}
+                                    className="mt-0.5 inline-block rounded bg-[#2ff5a8]/20 hover:bg-[#2ff5a8]/30 border border-[#2ff5a838] px-2 py-1 text-xs font-semibold text-[#8cf0c8] transition"
+                                  >
+                                    📝 {version.text.split("\n\n")[0].substring(0, 50)}...
+                                  </button>
+                                ) : (
+                                  <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
+                                    {version.text.substring(0, 50)}
+                                    {version.text.length > 50 ? "..." : ""}
+                                  </p>
+                                )}
+                              </>
                             )}
                             {version.files && version.files.length > 0 && (
                               <div className="mt-0.5">
@@ -1074,6 +1225,93 @@ const ClassroomPostDetails = () => {
                 >
                   Close
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* LaTeX Preview Modal */}
+          {showLatexModal && latexPreview && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto">
+              <div className="w-full max-w-4xl rounded-lg border border-[#2ff5a8] bg-[#1f2925] shadow-2xl my-8">
+                <div className="flex items-center justify-between border-b border-[#2ff5a8]/20 bg-[#0f1613d9] px-6 py-4">
+                  <h3 className="text-lg font-semibold text-[#e8f2ed]">
+                    📝 LaTeX Document Preview
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowLatexModal(false)}
+                    className="rounded hover:bg-white/10 p-1 text-[#bcd2c9] hover:text-[#e8f2ed] transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="p-6 max-h-96 overflow-y-auto bg-[#1f2925cc]">
+                  <div
+                    className="prose prose-invert max-w-none text-sm leading-relaxed
+                      [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:text-[#2ff5a8] [&_h1]:mt-4 [&_h1]:mb-3
+                      [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-[#8cf0c8] [&_h2]:mt-3 [&_h2]:mb-2
+                      [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-[#8cf0c8] [&_h3]:mt-2 [&_h3]:mb-1
+                      [&_p]:text-[#d8ebe3] [&_p]:leading-7 [&_p]:my-2
+                      [&_strong]:text-[#2ff5a8] [&_strong]:font-bold
+                      [&_em]:text-[#8cf0c8] [&_em]:italic
+                      [&_code]:bg-[#0f1613d9] [&_code]:px-2 [&_code]:py-1 [&_code]:rounded [&_code]:text-[#2ff5a8] [&_code]:font-mono [&_code]:text-xs
+                      [&_blockquote]:border-l-4 [&_blockquote]:border-[#2ff5a8] [&_blockquote]:pl-4 [&_blockquote]:text-[#bcd2c9] [&_blockquote]:italic [&_blockquote]:my-3
+                      [&_ul]:list-disc [&_ul]:list-inside [&_ul]:space-y-2 [&_ul]:my-2
+                      [&_li]:text-[#d8ebe3]"
+                    dangerouslySetInnerHTML={{
+                      __html: renderLatexToHtml(latexPreview),
+                    }}
+                  />
+                </div>
+
+                <div className="border-t border-[#2ff5a8]/20 bg-[#0f1613d9] px-6 py-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const printWindow = window.open("", "_blank");
+                      const content = renderLatexToHtml(latexPreview);
+                      const htmlContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                          <meta charset="UTF-8">
+                          <title>LaTeX Document</title>
+                          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+                          <style>
+                            body { font-family: "Georgia", serif; margin: 2cm; background: white; color: black; line-height: 1.6; }
+                            h1, h2, h3 { margin-top: 1.5em; margin-bottom: 0.5em; }
+                            p { text-align: justify; }
+                            blockquote { border-left: 3px solid #999; padding-left: 1em; margin-left: 0; color: #666; }
+                            ul { margin-left: 2em; }
+                            code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+                            .katex-display { display: block; margin: 1.5em 0; text-align: center; }
+                          </style>
+                        </head>
+                        <body>
+                          ${content}
+                          <script>
+                            window.print();
+                            window.close();
+                          </script>
+                        </body>
+                        </html>
+                      `;
+                      printWindow.document.write(htmlContent);
+                      printWindow.document.close();
+                    }}
+                    className="rounded bg-[#2ff5a8]/20 hover:bg-[#2ff5a8]/30 border border-[#2ff5a838] px-3 py-1.5 text-xs font-semibold text-[#8cf0c8] transition"
+                  >
+                    📄 Print/PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLatexModal(false)}
+                    className="ml-auto rounded bg-[#2ff5a8] hover:bg-[#24d993] px-4 py-1.5 text-sm font-semibold text-[#142019] transition"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}
