@@ -13,7 +13,6 @@ const Resources = () => {
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("approved");
   const [openHistoryById, setOpenHistoryById] = useState({});
   const [historyById, setHistoryById] = useState({});
   const [historyLoadingById, setHistoryLoadingById] = useState({});
@@ -60,7 +59,7 @@ const Resources = () => {
       return;
     }
     void fetchResources(selectedClassroomId);
-  }, [selectedClassroomId, filter]);
+  }, [selectedClassroomId]);
 
   const fetchResources = async (classroomId) => {
     setLoading(true);
@@ -72,38 +71,9 @@ const Resources = () => {
         setResources([]);
         return;
       }
-      let filtered = data;
-
-      if (filter === "pending") {
-        // Get pending resources
-        filtered = data.filter((r) => r.status === "pending");
-        
-        // Also fetch pending submissions from the pending API
-        try {
-          const pendingResponse = await fetch(
-            `${API_BASE_URL}/pending`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            }
-          );
-          
-          if (pendingResponse.ok) {
-            const pendingData = await pendingResponse.json();
-            // Combine pending resources with pending submissions
-            if (pendingData.resources && Array.isArray(pendingData.resources)) {
-              filtered = [...filtered, ...pendingData.resources];
-            }
-          }
-        } catch (err) {
-          console.log("Could not load pending submissions, showing resources only");
-        }
-      } else if (filter === "approved") {
-        filtered = data.filter((r) => r.status === "approved");
-      }
-
-      setResources(filtered);
+      
+      // Show all resources
+      setResources(data || []);
     } catch (err) {
       setError("Failed to load resources");
       console.error(err);
@@ -205,121 +175,7 @@ const Resources = () => {
     }
   };
 
-  const handleApprove = async (resourceId) => {
-    if (!canEdit) {
-      setError("Only professors can approve submissions");
-      return;
-    }
 
-    setApproving(true);
-    try {
-      const endpoint = `${API_BASE_URL}/pending/approve-submission/${resourceId}`;
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ passcode: "" }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Approval failed");
-      } else {
-        setResources((prev) => prev.filter((r) => r._id !== resourceId));
-        setMessage("✓ Submission approved successfully");
-      }
-    } catch (err) {
-      setError(err.message || "Approval failed");
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  const handleReject = async (resourceId) => {
-    if (!canEdit) {
-      setError("Only professors can reject submissions");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        "Are you sure you want to reject this submission? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
-
-    try {
-      const endpoint = `${API_BASE_URL}/pending/reject-submission/${resourceId}`;
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ passcode: "" }),
-      });
-
-      if (response.ok) {
-        setResources((prev) => prev.filter((r) => r._id !== resourceId));
-        setMessage("✓ Submission rejected");
-      } else {
-        const errorBody = await response.json().catch(() => ({}));
-        setError(errorBody.error || "Rejection failed");
-      }
-    } catch (err) {
-      setError("Rejection failed: " + err.message);
-    }
-  };
-
-  const downloadFile = async (resourceId, fileIndex) => {
-    try {
-      const resource = resources.find((r) => r._id === resourceId);
-      if (!resource) {
-        setError("Resource not found");
-        return;
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/classrooms/${resource.classroomId._id || resource.classroomId}/posts/${resource.postId._id || resource.postId}/submissions/${resourceId}/files/${fileIndex}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        setError(errorBody.error || "Failed to download file");
-        return;
-      }
-
-      const blob = await response.blob();
-      const disposition = response.headers.get("Content-Disposition") || "";
-      const fileNameMatch = disposition.match(/filename="?([^/"]+)"?/);
-      const fileName = fileNameMatch
-        ? decodeURIComponent(fileNameMatch[1])
-        : "submission-file";
-
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
-      setError("Download failed: " + err.message);
-    }
-  };
 
   return (
     <div className="mx-auto w-full max-w-360 rounded-2xl bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] p-4 md:p-8">
@@ -346,36 +202,6 @@ const Resources = () => {
               </option>
             ))}
           </select>
-          <button
-            className={`rounded-2xl border px-6 py-3 text-sm font-semibold transition ${
-              filter === "all"
-                ? "border-transparent bg-[#2ff5a8] text-[#142019]"
-                : "border-white/20 bg-white/10 text-slate-100 hover:border-[#2ff5a8] hover:bg-white/20"
-            }`}
-            onClick={() => setFilter("all")}
-          >
-            All
-          </button>
-          <button
-            className={`rounded-2xl border px-6 py-3 text-sm font-semibold transition ${
-              filter === "approved"
-                ? "border-transparent bg-[#2ff5a8] text-[#142019]"
-                : "border-white/20 bg-white/10 text-slate-100 hover:border-[#2ff5a8] hover:bg-white/20"
-            }`}
-            onClick={() => setFilter("approved")}
-          >
-            Approved
-          </button>
-          <button
-            className={`rounded-2xl border px-6 py-3 text-sm font-semibold transition ${
-              filter === "pending"
-                ? "border-transparent bg-[#2ff5a8] text-[#142019]"
-                : "border-white/20 bg-white/10 text-slate-100 hover:border-[#2ff5a8] hover:bg-white/20"
-            }`}
-            onClick={() => setFilter("pending")}
-          >
-            Pending
-          </button>
         </div>
       </div>
 
@@ -419,9 +245,13 @@ const Resources = () => {
                       className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm text-[#e8f2ed]"
                     />
                   ) : (
-                    <h3 className="wrap-break-word text-xl font-semibold text-[#e8f2ed]">
+                    <button
+                      type="button"
+                      className="wrap-break-word text-xl font-semibold text-[#e8f2ed] cursor-pointer transition hover:text-blue-400 hover:underline"
+                      onClick={() => startEditResource(resource)}
+                    >
                       {resource.title}
-                    </h3>
+                    </button>
                   )}
                 </div>
                 <span
@@ -453,61 +283,7 @@ const Resources = () => {
                   </p>
                 )}
 
-                {resource.githubUrl && (
-                  <div className="mt-4 border-t border-[#2ff5a838] pt-4">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[#9fc0b2]">
-                      GitHub URL
-                    </p>
-                    <a
-                      href={resource.githubUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-[#2ff5a8] hover:text-white transition"
-                    >
-                      <LinkIcon size={16} />
-                      {resource.githubUrl}
-                    </a>
-                  </div>
-                )}
-
-                {resource.files && resource.files.length > 0 && (
-                  <div className="mt-4 border-t border-[#2ff5a838] pt-4">
-                    <p className="mb-3 text-xs font-bold uppercase tracking-wide text-[#9fc0b2]">
-                      Submitted Files
-                    </p>
-                    <div className="space-y-2">
-                      {resource.files.map((fileUrl, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => downloadFile(resource._id, idx)}
-                          className="flex w-full items-center gap-2 rounded border border-[#2ff5a847] bg-[#2ff5a811] px-3 py-2 text-sm font-semibold text-[#2ff5a8] transition hover:bg-[#2ff5a822] hover:border-[#2ff5a8]"
-                        >
-                          📄 File {idx + 1}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-
-              {resource.status === "pending" && canEdit && (
-                <div className="border-t border-[#2ff5a838] bg-[#0f160f] px-6 py-4">
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleApprove(resource._id)}
-                      className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
-                    >
-                      ✓ Approve
-                    </button>
-                    <button
-                      onClick={() => handleReject(resource._id)}
-                      className="flex-1 rounded-lg border border-red-500 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/10"
-                    >
-                      ✕ Reject
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {resource.aiSummary && (
                 <div className="border-t border-[#2ff5a838] px-6 py-4">
