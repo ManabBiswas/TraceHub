@@ -849,7 +849,8 @@ export const submitAssignment = async (req, res) => {
 
     // For PROJECT posts, store githubUrl instead of link
     const effectiveLink = post.type === "PROJECT" ? githubUrl : link;
-    const hasLink = typeof effectiveLink === "string" && effectiveLink.trim().length > 0;
+    const hasLink =
+      typeof effectiveLink === "string" && effectiveLink.trim().length > 0;
     const hasText = typeof text === "string" && text.trim().length > 0;
     const hasFiles = files.length > 0;
 
@@ -900,8 +901,10 @@ export const submitAssignment = async (req, res) => {
         postId,
         studentId: req.user._id,
         contentType,
-        link: post.type === "PROJECT" ? "" : (hasLink ? effectiveLink.trim() : ""),
-        githubUrl: post.type === "PROJECT" ? (hasLink ? effectiveLink.trim() : "") : "",
+        link:
+          post.type === "PROJECT" ? "" : hasLink ? effectiveLink.trim() : "",
+        githubUrl:
+          post.type === "PROJECT" ? (hasLink ? effectiveLink.trim() : "") : "",
         text: hasText ? text.trim() : "",
         files: storedFiles,
         status: "TURNED_IN",
@@ -1265,6 +1268,74 @@ export const updateSubmission = async (req, res) => {
       submission,
     });
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET VERIFIED PROJECTS FOR CLASSROOM
+// Any classroom member can view verified/public projects
+// ─────────────────────────────────────────────────────────────────────────────
+export const getVerifiedProjects = async (req, res) => {
+  try {
+    const { classroomId } = req.params;
+
+    if (!isValidObjectId(classroomId)) {
+      return res.status(400).json({ error: "Invalid classroomId" });
+    }
+
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    // Check if user is a member of the classroom
+    if (!canAccessClassroom(classroom, req.user._id)) {
+      return res.status(403).json({
+        error: "You are not a member of this classroom",
+      });
+    }
+
+    // Get all verified submissions with PROJECT posts
+    const verifiedSubmissions = await Submission.find({
+      classroomId,
+      submissionStatus: "VERIFIED",
+      isPublic: true,
+    })
+      .select("-files.data")
+      .populate("studentId", "name email")
+      .populate("postId", "title type points dueDate")
+      .sort({ publicApprovedAt: -1 });
+
+    const projects = verifiedSubmissions.map((sub) => ({
+      _id: sub._id,
+      studentName: sub.studentId?.name || "Unknown",
+      studentEmail: sub.studentId?.email || "",
+      studentId: sub.studentId?._id,
+      postTitle: sub.postId?.title || "Untitled",
+      postId: sub.postId?._id,
+      submissionStatus: sub.submissionStatus,
+      versionNumber: sub.versionNumber,
+      revisionCycle: sub.revisionCycle,
+      githubUrl: sub.githubUrl,
+      files:
+        sub.files?.map((f) => ({
+          fileName: f.fileName,
+          mimeType: f.mimeType,
+          size: f.size,
+        })) || [],
+      publishedAt: sub.publicApprovedAt,
+      projectVerification: sub.projectVerification,
+    }));
+
+    return res.json({
+      classroomId,
+      classroomName: classroom.name,
+      verifiedProjects: projects,
+      count: projects.length,
+    });
+  } catch (error) {
+    console.error("getVerifiedProjects error:", error);
     return res.status(500).json({ error: error.message });
   }
 };

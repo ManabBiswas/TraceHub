@@ -82,7 +82,12 @@ export const saveProjectDraft = async (req, res) => {
 
     // Guard: block edits when student has finalized submission
     if (submission) {
-      const blockedStatuses = ["FINAL_SUBMITTED", "UNDER_REVIEW", "VERIFIED"];
+      const blockedStatuses = [
+        "FINAL_SUBMITTED",
+        "UNDER_REVIEW",
+        "VERIFIED",
+        "TURNED_IN",
+      ];
       if (blockedStatuses.includes(submission.submissionStatus)) {
         return res.status(403).json({
           error: `You cannot make changes. Status: ${submission.submissionStatus}.`,
@@ -147,7 +152,10 @@ export const saveProjectDraft = async (req, res) => {
         },
       });
     } catch {
-      draftTxId = process.env.ALGORAND_DEMO_FALLBACK === "true" ? `DEMO_DRAFT_${Date.now()}` : "";
+      draftTxId =
+        process.env.ALGORAND_DEMO_FALLBACK === "true"
+          ? `DEMO_DRAFT_${Date.now()}`
+          : "";
     }
 
     submission.versionNumber = nextVersion;
@@ -174,7 +182,8 @@ export const saveProjectDraft = async (req, res) => {
     await submission.save();
 
     return res.status(200).json({
-      message: "Draft saved successfully. You can continue editing or submit final when ready.",
+      message:
+        "Draft saved successfully. You can continue editing or submit final when ready.",
       submission: sanitizeSubmissionForStudent(submission),
       submissionStatus: submission.submissionStatus,
       versionNumber: submission.versionNumber,
@@ -206,11 +215,7 @@ export const submitProjectFinal = async (req, res) => {
       });
     }
 
-    const alreadyFinalized = [
-      "FINAL_SUBMITTED",
-      "UNDER_REVIEW",
-      "VERIFIED",
-    ];
+    const alreadyFinalized = ["FINAL_SUBMITTED", "UNDER_REVIEW", "VERIFIED"];
     if (alreadyFinalized.includes(submission.submissionStatus)) {
       return res.status(403).json({
         error: "You have already made a final submission.",
@@ -262,7 +267,10 @@ export const submitProjectFinal = async (req, res) => {
         },
       });
     } catch {
-      finalTxId = process.env.ALGORAND_DEMO_FALLBACK === "true" ? `DEMO_FINAL_${Date.now()}` : "";
+      finalTxId =
+        process.env.ALGORAND_DEMO_FALLBACK === "true"
+          ? `DEMO_FINAL_${Date.now()}`
+          : "";
     }
 
     submission.submissionStatus = "UNDER_REVIEW";
@@ -290,11 +298,17 @@ export const submitProjectFinal = async (req, res) => {
 
     await submission.save();
 
-    triggerAIAnalysis(submission._id, postId, classroomId, req.user._id, submission.githubUrl)
-      .catch((err) => console.error("AI analysis failed:", err.message));
+    triggerAIAnalysis(
+      submission._id,
+      postId,
+      classroomId,
+      req.user._id,
+      submission.githubUrl,
+    ).catch((err) => console.error("AI analysis failed:", err.message));
 
     return res.status(200).json({
-      message: "Submission received! Awaiting teacher approval before final verification.",
+      message:
+        "Submission received! Awaiting teacher approval before final verification.",
       submissionStatus: "UNDER_REVIEW",
       finalSubmissionTxId: finalTxId,
       revisionCycle: submission.revisionCycle,
@@ -315,7 +329,9 @@ export const verifyProject = async (req, res) => {
 
     const classroom = await Classroom.findById(classroomId);
     if (!isTeacherInClassroom(classroom, req.user._id)) {
-      return res.status(403).json({ error: "Only teachers can verify projects" });
+      return res
+        .status(403)
+        .json({ error: "Only teachers can verify projects" });
     }
 
     const submission = await Submission.findOne({
@@ -328,7 +344,7 @@ export const verifyProject = async (req, res) => {
       return res.status(404).json({ error: "Submission not found" });
     }
 
-    const reviewableStatuses = ["FINAL_SUBMITTED", "UNDER_REVIEW"];
+    const reviewableStatuses = ["FINAL_SUBMITTED", "UNDER_REVIEW", "TURNED_IN"];
     if (!reviewableStatuses.includes(submission.submissionStatus)) {
       return res.status(400).json({
         error: `Cannot verify a project with status: ${submission.submissionStatus}`,
@@ -361,7 +377,10 @@ export const verifyProject = async (req, res) => {
         },
       });
     } catch {
-      verificationTxId = process.env.ALGORAND_DEMO_FALLBACK === "true" ? `DEMO_VERIFY_${Date.now()}` : "";
+      verificationTxId =
+        process.env.ALGORAND_DEMO_FALLBACK === "true"
+          ? `DEMO_VERIFY_${Date.now()}`
+          : "";
     }
 
     submission.submissionStatus = "VERIFIED";
@@ -430,13 +449,16 @@ export const rejectForRevision = async (req, res) => {
 
     if (!professorNote || professorNote.trim().length < 10) {
       return res.status(400).json({
-        error: "A detailed professor note is required when rejecting for revision.",
+        error:
+          "A detailed professor note is required when rejecting for revision.",
       });
     }
 
     const classroom = await Classroom.findById(classroomId);
     if (!isTeacherInClassroom(classroom, req.user._id)) {
-      return res.status(403).json({ error: "Only teachers can review projects" });
+      return res
+        .status(403)
+        .json({ error: "Only teachers can review projects" });
     }
 
     const submission = await Submission.findOne({
@@ -451,11 +473,12 @@ export const rejectForRevision = async (req, res) => {
 
     if (submission.submissionStatus === "VERIFIED") {
       return res.status(400).json({
-        error: "A verified project cannot be rejected. Verification is permanent.",
+        error:
+          "A verified project cannot be rejected. Verification is permanent.",
       });
     }
 
-    const reviewableStatuses = ["FINAL_SUBMITTED", "UNDER_REVIEW"];
+    const reviewableStatuses = ["FINAL_SUBMITTED", "UNDER_REVIEW", "TURNED_IN"];
     if (!reviewableStatuses.includes(submission.submissionStatus)) {
       return res.status(400).json({
         error: `Cannot reject a project with status: ${submission.submissionStatus}`,
@@ -481,7 +504,10 @@ export const rejectForRevision = async (req, res) => {
         },
       });
     } catch {
-      rejectionTxId = process.env.ALGORAND_DEMO_FALLBACK === "true" ? `DEMO_REJECT_${Date.now()}` : "";
+      rejectionTxId =
+        process.env.ALGORAND_DEMO_FALLBACK === "true"
+          ? `DEMO_REJECT_${Date.now()}`
+          : "";
     }
 
     submission.submissionStatus = "REJECTED_FOR_REVISION";
@@ -507,7 +533,8 @@ export const rejectForRevision = async (req, res) => {
     await submission.save();
 
     return res.status(200).json({
-      message: "Project sent back for revision. Student can now submit a new version.",
+      message:
+        "Project sent back for revision. Student can now submit a new version.",
       submissionStatus: "REJECTED_FOR_REVISION",
       revisionCycle: newRevisionCycle,
       rejectionTxId,
@@ -535,7 +562,9 @@ export const permanentlyRejectProject = async (req, res) => {
 
     const classroom = await Classroom.findById(classroomId);
     if (!isTeacherInClassroom(classroom, req.user._id)) {
-      return res.status(403).json({ error: "Only teachers can review projects" });
+      return res
+        .status(403)
+        .json({ error: "Only teachers can review projects" });
     }
 
     const submission = await Submission.findOne({
@@ -563,10 +592,17 @@ export const permanentlyRejectProject = async (req, res) => {
         versionNumber: nextVersion,
         action: "PERMANENTLY_REJECTED",
         actor: req.user.name,
-        payload: { classroomId, postId, studentId: String(submission.studentId) },
+        payload: {
+          classroomId,
+          postId,
+          studentId: String(submission.studentId),
+        },
       });
     } catch {
-      txId = process.env.ALGORAND_DEMO_FALLBACK === "true" ? `DEMO_PERM_REJECT_${Date.now()}` : "";
+      txId =
+        process.env.ALGORAND_DEMO_FALLBACK === "true"
+          ? `DEMO_PERM_REJECT_${Date.now()}`
+          : "";
     }
 
     submission.submissionStatus = "PERMANENTLY_REJECTED";
@@ -600,6 +636,142 @@ export const permanentlyRejectProject = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TURN IN PROJECT (student)
+// Student finalizes the submission and locks it from further edits.
+// Professor can now grade and accept/return for improvements.
+// ─────────────────────────────────────────────────────────────────────────────
+export const turnInProject = async (req, res) => {
+  try {
+    const { classroomId, postId } = req.params;
+
+    const submission = await Submission.findOne({
+      classroomId,
+      postId,
+      studentId: req.user._id,
+    });
+
+    if (!submission) {
+      return res.status(404).json({
+        error:
+          "No submission found. Please save and finalize your project first.",
+      });
+    }
+
+    // Guard: only allow turn-in from FINAL_SUBMITTED status
+    const validStatuses = ["FINAL_SUBMITTED"];
+    if (!validStatuses.includes(submission.submissionStatus)) {
+      return res.status(403).json({
+        error: `Cannot turn in a project with status: ${submission.submissionStatus}. Please finalize your submission first.`,
+        submissionStatus: submission.submissionStatus,
+      });
+    }
+
+    const nextVersion = submission.versionNumber + 1;
+    let turnInTxId = "";
+    try {
+      turnInTxId = await mintVersionProof({
+        entityType: "PROJECT_TURN_IN",
+        entityId: String(submission._id),
+        versionNumber: nextVersion,
+        action: "TURNED_IN",
+        actor: req.user.name,
+        payload: {
+          classroomId,
+          postId,
+          revisionCycle: submission.revisionCycle,
+        },
+      });
+    } catch {
+      turnInTxId =
+        process.env.ALGORAND_DEMO_FALLBACK === "true"
+          ? `DEMO_TURNIN_${Date.now()}`
+          : "";
+    }
+
+    // Lock the submission
+    submission.submissionStatus = "TURNED_IN";
+    submission.versionNumber = nextVersion;
+    submission.versionHistory.push({
+      versionNumber: nextVersion,
+      action: "TURNED_IN",
+      contentType: submission.contentType,
+      githubUrl: submission.githubUrl,
+      text: submission.text,
+      files: submission.files.map((f) => ({
+        fileName: f.fileName,
+        mimeType: f.mimeType,
+        size: f.size,
+        hasBinaryData: true,
+      })),
+      algorandTxId: turnInTxId,
+      updatedByUserId: req.user._id,
+      updatedByName: req.user.name,
+      updatedByRole: req.user.role,
+      updatedAt: new Date(),
+      revisionCycle: submission.revisionCycle,
+    });
+
+    await submission.save();
+
+    return res.status(200).json({
+      message:
+        "Project successfully turned in! Your submission is now locked and ready for professor review.",
+      submissionStatus: "TURNED_IN",
+      versionNumber: submission.versionNumber,
+      turnInTxId,
+    });
+  } catch (error) {
+    console.error("turnInProject error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET ALL SUBMISSIONS (professor)
+// ─────────────────────────────────────────────────────────────────────────────
+export const getAllProjectSubmissions = async (req, res) => {
+  try {
+    const { classroomId, postId } = req.params;
+
+    const classroom = await Classroom.findById(classroomId);
+    if (!isTeacherInClassroom(classroom, req.user._id)) {
+      return res
+        .status(403)
+        .json({ error: "Only teachers can view all submissions" });
+    }
+
+    const submissions = await Submission.find({
+      classroomId,
+      postId,
+    })
+      .select("-files.data")
+      .populate("studentId", "name email")
+      .sort({ createdAt: -1 });
+
+    return res.json({
+      submissions: submissions.map((sub) => ({
+        _id: sub._id,
+        studentId: sub.studentId._id,
+        studentName: sub.studentId.name,
+        studentEmail: sub.studentId.email,
+        submissionStatus: sub.submissionStatus,
+        versionNumber: sub.versionNumber,
+        revisionCycle: sub.revisionCycle,
+        githubUrl: sub.githubUrl,
+        files: sub.files,
+        marks: sub.marks,
+        feedback: sub.feedback,
+        createdAt: sub.createdAt,
+        updatedAt: sub.updatedAt,
+      })),
+    });
+  } catch (error) {
+    console.error("getAllProjectSubmissions error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET MY SUBMISSION (student)
 // ─────────────────────────────────────────────────────────────────────────────
 export const getMyProjectSubmission = async (req, res) => {
@@ -620,18 +792,68 @@ export const getMyProjectSubmission = async (req, res) => {
       submission: sanitizeSubmissionForStudent(submission),
       submissionStatus: submission.submissionStatus,
       revisionCycle: submission.revisionCycle,
+      versionNumber: submission.versionNumber,
+      versionHistory: submission.versionHistory,
       canEdit: ["DRAFT", "REJECTED_FOR_REVISION"].includes(
-        submission.submissionStatus
+        submission.submissionStatus,
       ),
       canFinalSubmit: ["DRAFT", "REJECTED_FOR_REVISION"].includes(
-        submission.submissionStatus
+        submission.submissionStatus,
       ),
+      canTurnIn: submission.submissionStatus === "FINAL_SUBMITTED",
+      cannotEditReason:
+        submission.submissionStatus === "TURNED_IN"
+          ? "Your project has been turned in and is locked for grading."
+          : submission.submissionStatus === "UNDER_REVIEW" ||
+              submission.submissionStatus === "VERIFIED"
+            ? "Your project is under review and cannot be modified."
+            : null,
       professorNote:
         submission.submissionStatus === "REJECTED_FOR_REVISION"
           ? submission.projectVerification?.professorNote
           : null,
     });
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET SUBMISSION VERSION HISTORY (professor/student)
+// ─────────────────────────────────────────────────────────────────────────────
+export const getSubmissionVersionHistory = async (req, res) => {
+  try {
+    const { classroomId, postId, submissionId } = req.params;
+
+    const submission = await Submission.findOne({
+      _id: submissionId,
+      classroomId,
+      postId,
+    });
+
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+
+    // Student can only see their own version history
+    if (submission.studentId.toString() !== req.user._id.toString()) {
+      const classroom = await Classroom.findById(classroomId);
+      // Only allow if user is professor/HOD
+      if (!isTeacherInClassroom(classroom, req.user._id)) {
+        return res.status(403).json({
+          error: "You don't have permission to view this submission's history",
+        });
+      }
+    }
+
+    return res.json({
+      versions: submission.versionHistory || [],
+      versionNumber: submission.versionNumber,
+      submissionStatus: submission.submissionStatus,
+      revisionCycle: submission.revisionCycle,
+    });
+  } catch (error) {
+    console.error("getSubmissionVersionHistory error:", error);
     return res.status(500).json({ error: error.message });
   }
 };
@@ -678,7 +900,7 @@ async function triggerAIAnalysis(
   postId,
   classroomId,
   studentId,
-  githubUrl
+  githubUrl,
 ) {
   try {
     // Update status to PROCESSING
@@ -692,7 +914,7 @@ async function triggerAIAnalysis(
       postId,
       classroomId,
       studentId,
-      githubUrl
+      githubUrl,
     );
 
     // AI done — move to UNDER_REVIEW

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../config/Api";
 import { useAuth } from "../context/AuthContext";
+import { VersionHistory } from "../components/VersionHistory";
 
 const ClassroomProjectDetails = () => {
   const navigate = useNavigate();
@@ -20,12 +21,19 @@ const ClassroomProjectDetails = () => {
     files: [],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [turningIn, setTurningIn] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [gradeForm, setGradeForm] = useState({
     submissionId: "",
     marks: "",
     status: "SUBMITTED",
     feedback: "",
+  });
+  const [reviewModal, setReviewModal] = useState({
+    isOpen: false,
+    submissionId: "",
+    action: null, // "accept" or "return"
+    note: "",
   });
 
   const formatDateTime = (value) => {
@@ -145,6 +153,7 @@ const ClassroomProjectDetails = () => {
 
     const formData = new FormData();
     formData.append("githubUrl", submissionForm.githubUrl);
+    formData.append("notes", "");
     submissionForm.files.forEach((file) => {
       formData.append("files", file);
     });
@@ -162,12 +171,88 @@ const ClassroomProjectDetails = () => {
       return;
     }
 
-    setMessage(response.message || "Project submitted successfully");
+    setMessage(
+      response.message ||
+        "Draft saved successfully. You can continue editing or finalize when ready.",
+    );
     setSubmissionForm({ githubUrl: "", files: [] });
 
     if (response.submission?._id) {
       setMySubmission(response.submission);
       await loadSubmissionTimeline(response.submission._id);
+    }
+  };
+
+  const handleFinalizeProject = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to finalize your submission? After this, you can still save more drafts, but you'll need to turn in the project when you're fully ready.",
+      )
+    ) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+
+    const response = await api.classrooms.finalizeProject(classroomId, postId);
+
+    setSubmitting(false);
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    setMessage(
+      response.message ||
+        "Submission finalized! You can now review and turn in.",
+    );
+
+    if (response.submissionStatus) {
+      const updatedSubmission = {
+        ...mySubmission,
+        submissionStatus: response.submissionStatus,
+        versionNumber: response.versionNumber,
+      };
+      setMySubmission(updatedSubmission);
+      await loadSubmissionTimeline(mySubmission._id);
+    }
+  };
+
+  const handleTurnInProject = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to turn in your project? This will lock your submission and you won't be able to make further changes.",
+      )
+    ) {
+      return;
+    }
+
+    setTurningIn(true);
+    setError("");
+    setMessage("");
+
+    const response = await api.classrooms.turnInProject(classroomId, postId);
+
+    setTurningIn(false);
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    setMessage(response.message || "Project turned in successfully!");
+
+    if (response.submissionStatus) {
+      const updatedSubmission = {
+        ...mySubmission,
+        submissionStatus: response.submissionStatus,
+        versionNumber: response.versionNumber,
+      };
+      setMySubmission(updatedSubmission);
+      await loadSubmissionTimeline(mySubmission._id);
     }
   };
 
@@ -208,7 +293,7 @@ const ClassroomProjectDetails = () => {
         marks: gradeForm.marks,
         status: gradeForm.status,
         feedback: gradeForm.feedback,
-      }
+      },
     );
 
     if (response.error) {
@@ -225,7 +310,66 @@ const ClassroomProjectDetails = () => {
     });
 
     // Reload submissions
-    const subResponse = await api.classrooms.getSubmissions(classroomId, postId);
+    const subResponse = await api.classrooms.getSubmissions(
+      classroomId,
+      postId,
+    );
+    if (!subResponse.error) {
+      setSubmissions(subResponse.submissions || []);
+    }
+  };
+
+  const handleAcceptSubmission = async (submissionId, note) => {
+    setError("");
+    setMessage("");
+
+    const response = await api.classrooms.acceptProjectSubmission(
+      classroomId,
+      postId,
+      submissionId,
+      { professorNote: note },
+    );
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    setMessage("Project accepted and verified!");
+
+    // Reload submissions
+    const subResponse = await api.classrooms.getSubmissions(
+      classroomId,
+      postId,
+    );
+    if (!subResponse.error) {
+      setSubmissions(subResponse.submissions || []);
+    }
+  };
+
+  const handleReturnForRevision = async (submissionId, note) => {
+    setError("");
+    setMessage("");
+
+    const response = await api.classrooms.returnProjectForRevision(
+      classroomId,
+      postId,
+      submissionId,
+      { professorNote: note },
+    );
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    setMessage("Project returned for revision. Student will be notified.");
+
+    // Reload submissions
+    const subResponse = await api.classrooms.getSubmissions(
+      classroomId,
+      postId,
+    );
     if (!subResponse.error) {
       setSubmissions(subResponse.submissions || []);
     }
@@ -338,10 +482,27 @@ const ClassroomProjectDetails = () => {
               {!post.allowStudentSubmissions && (
                 <div className="mb-6 rounded-lg border-l-4 border-red-400 bg-red-500/10 p-4">
                   <p className="text-sm text-red-200">
-                    Submissions are currently closed for this project. Contact your instructor for more information.
+                    Submissions are currently closed for this project. Contact
+                    your instructor for more information.
                   </p>
                 </div>
               )}
+
+              {mySubmission &&
+                ["TURNED_IN", "UNDER_REVIEW", "VERIFIED"].includes(
+                  mySubmission.submissionStatus,
+                ) && (
+                  <div className="mb-6 rounded-lg border-l-4 border-red-400 bg-red-500/10 p-4">
+                    <p className="text-sm text-red-200">
+                      {mySubmission.submissionStatus === "TURNED_IN" &&
+                        "Your project has been turned in and is locked. You cannot make further changes."}
+                      {mySubmission.submissionStatus === "UNDER_REVIEW" &&
+                        "Your project is under review. You cannot make changes at this time."}
+                      {mySubmission.submissionStatus === "VERIFIED" &&
+                        "Your project has been verified. You cannot make changes."}
+                    </p>
+                  </div>
+                )}
 
               {/* GitHub URL Section */}
               <div className="mb-6">
@@ -359,7 +520,13 @@ const ClassroomProjectDetails = () => {
                         githubUrl: e.target.value,
                       }))
                     }
-                    className="flex-1 rounded-lg border border-white/20 bg-[#1f2925cc] px-4 py-3 text-[#e8f2ed] placeholder-[#8b9d95] transition focus:border-[#2ff5a8] focus:outline-none"
+                    disabled={
+                      mySubmission &&
+                      ["TURNED_IN", "UNDER_REVIEW", "VERIFIED"].includes(
+                        mySubmission.submissionStatus,
+                      )
+                    }
+                    className="flex-1 rounded-lg border border-white/20 bg-[#1f2925cc] px-4 py-3 text-[#e8f2ed] placeholder-[#8b9d95] transition focus:border-[#2ff5a8] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                   />
                   {submissionForm.githubUrl && (
                     <a
@@ -387,7 +554,7 @@ const ClassroomProjectDetails = () => {
                   <div className="flex items-center gap-3">
                     <label
                       htmlFor="project-files"
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-xs font-semibold text-[#142019] transition hover:bg-[#24d993]"
+                      className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-[#2ff5a8] bg-[#2ff5a8] px-3 py-1.5 text-xs font-semibold text-[#142019] transition hover:bg-[#24d993] ${mySubmission && ["TURNED_IN", "UNDER_REVIEW", "VERIFIED"].includes(mySubmission.submissionStatus) ? "cursor-not-allowed opacity-50" : ""}`}
                     >
                       Choose Files
                     </label>
@@ -403,6 +570,12 @@ const ClassroomProjectDetails = () => {
                     type="file"
                     accept="application/pdf,.pdf"
                     multiple
+                    disabled={
+                      mySubmission &&
+                      ["TURNED_IN", "UNDER_REVIEW", "VERIFIED"].includes(
+                        mySubmission.submissionStatus,
+                      )
+                    }
                     onChange={(e) =>
                       setSubmissionForm((prev) => ({
                         ...prev,
@@ -418,7 +591,8 @@ const ClassroomProjectDetails = () => {
                       <ul className="space-y-1 text-xs text-[#d8ebe3]">
                         {submissionForm.files.map((file, idx) => (
                           <li key={idx} className="flex items-center gap-2">
-                            {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                            {file.name} ({(file.size / 1024 / 1024).toFixed(2)}{" "}
+                            MB)
                           </li>
                         ))}
                       </ul>
@@ -431,13 +605,36 @@ const ClassroomProjectDetails = () => {
               </div>
 
               {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={submitting || !post.allowStudentSubmissions}
-                className="rounded-lg bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition hover:bg-[#24d993] hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {submitting ? "Submitting..." : "Submit"}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={
+                    submitting ||
+                    !post.allowStudentSubmissions ||
+                    (mySubmission &&
+                      ["TURNED_IN", "UNDER_REVIEW", "VERIFIED"].includes(
+                        mySubmission.submissionStatus,
+                      ))
+                  }
+                  className="rounded-lg bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] transition hover:bg-[#24d993] hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting ? "Saving..." : "💾 Save Draft"}
+                </button>
+
+                {mySubmission &&
+                  ["DRAFT", "REJECTED_FOR_REVISION"].includes(
+                    mySubmission.submissionStatus,
+                  ) && (
+                    <button
+                      type="button"
+                      disabled={submitting || !post.allowStudentSubmissions}
+                      onClick={handleFinalizeProject}
+                      className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {submitting ? "Finalizing..." : "✅ Finalize Submission"}
+                    </button>
+                  )}
+              </div>
             </form>
           )}
 
@@ -457,6 +654,71 @@ const ClassroomProjectDetails = () => {
                   {mySubmission.submissionStatus}
                 </p>
               </div>
+
+              {/* Version Number */}
+              <div className="mt-2 inline-block ml-4 rounded-lg bg-[#8b9d9522] px-4 py-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#bcd2c9]">
+                  Current Version
+                </p>
+                <p className="mt-1 text-lg font-bold text-[#bcd2c9]">
+                  v{mySubmission.versionNumber}
+                </p>
+              </div>
+
+              {/* Status Messages */}
+              {mySubmission.submissionStatus === "DRAFT" && (
+                <div className="mt-4 rounded-lg border-l-4 border-blue-400 bg-blue-500/10 p-4">
+                  <p className="text-sm text-blue-300">
+                    💾 You are working on a draft. Save your work regularly,
+                    then finalize and turn in when ready.
+                  </p>
+                </div>
+              )}
+
+              {mySubmission.submissionStatus === "FINAL_SUBMITTED" && (
+                <div className="mt-4 rounded-lg border-l-4 border-amber-400 bg-amber-500/10 p-4">
+                  <p className="text-sm text-amber-300">
+                    ⏳ Your submission has been finalized. Please review and
+                    then <strong>Turn In</strong> to lock it for grading.
+                  </p>
+                </div>
+              )}
+
+              {mySubmission.submissionStatus === "TURNED_IN" && (
+                <div className="mt-4 rounded-lg border-l-4 border-purple-400 bg-purple-500/10 p-4">
+                  <p className="text-sm text-purple-300">
+                    🔒 Your project has been turned in and locked. It is now
+                    ready for professor review. You cannot make further changes.
+                  </p>
+                </div>
+              )}
+
+              {mySubmission.submissionStatus === "UNDER_REVIEW" && (
+                <div className="mt-4 rounded-lg border-l-4 border-amber-400 bg-amber-500/10 p-4">
+                  <p className="text-sm text-amber-300">
+                    👀 Your project is under review. Check back soon for
+                    feedback.
+                  </p>
+                </div>
+              )}
+
+              {mySubmission.submissionStatus === "REJECTED_FOR_REVISION" && (
+                <div className="mt-4 rounded-lg border-l-4 border-red-400 bg-red-500/10 p-4">
+                  <p className="text-sm text-red-300">
+                    ⚠️ Your project needs revision. The professor has provided
+                    feedback below. You can edit and resubmit.
+                  </p>
+                </div>
+              )}
+
+              {mySubmission.submissionStatus === "VERIFIED" && (
+                <div className="mt-4 rounded-lg border-l-4 border-emerald-400 bg-emerald-500/10 p-4">
+                  <p className="text-sm text-emerald-300">
+                    ✅ Your project has been verified and accepted! It is
+                    published in the gallery.
+                  </p>
+                </div>
+              )}
 
               {/* GitHub Link */}
               {mySubmission.githubUrl && (
@@ -525,6 +787,36 @@ const ClassroomProjectDetails = () => {
                   )}
                 </div>
               )}
+
+              {/* Turn In Button */}
+              {mySubmission.submissionStatus === "FINAL_SUBMITTED" && (
+                <div className="mt-6 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTurnInProject}
+                    disabled={turningIn}
+                    className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {turningIn ? "Turning in..." : "🔒 Turn In Project"}
+                  </button>
+                  <p className="flex items-center text-xs text-[#8b9d95]">
+                    This will lock your submission and send it to the professor
+                    for grading
+                  </p>
+                </div>
+              )}
+
+              {/* Version History */}
+              {mySubmission.versionHistory &&
+                mySubmission.versionHistory.length > 0 && (
+                  <VersionHistory
+                    versionHistory={mySubmission.versionHistory}
+                    studentName={mySubmission.studentName || "Student"}
+                    submissionId={mySubmission._id}
+                    isProfessor={isProfessor || isAdmin}
+                    onVerify={handleAcceptSubmission}
+                  />
+                )}
             </div>
           )}
 
@@ -535,132 +827,292 @@ const ClassroomProjectDetails = () => {
                 Student Submissions ({submissions.length})
               </h2>
               <div className="space-y-4">
-                {submissions.map((submission) => (
-                  <div
-                    key={submission._id}
-                    className="rounded-lg border border-white/10 bg-[#1f292580] p-4"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">{submission.studentName}</p>
-                        <p className="text-xs text-[#bcd2c9]">
-                          Submitted: {new Date(submission.submittedAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <span className={`rounded px-2 py-1 text-xs font-semibold ${
-                        submission.status === "GRADED"
-                          ? "bg-emerald-500/20 text-emerald-300"
-                          : submission.status === "RETURNED"
-                          ? "bg-red-500/20 text-red-300"
-                          : "bg-amber-500/20 text-amber-300"
-                      }`}>
-                        {submission.status || "SUBMITTED"}
-                      </span>
-                    </div>
-
-                    {submission.githubUrl && (
-                      <div className="mb-2">
-                        <p className="text-xs font-semibold text-[#2ff5a8]">GitHub URL:</p>
-                        <a
-                          href={submission.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="cursor-pointer text-xs text-blue-400 underline"
-                        >
-                          {submission.githubUrl}
-                        </a>
-                      </div>
-                    )}
-
-                    {Array.isArray(submission.files) && submission.files.length > 0 && (
-                      <div className="mb-3">
-                        <p className="mb-2 text-xs font-semibold text-[#2ff5a8]">Files:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {submission.files.map((file, index) => (
-                            <button
-                              key={`${submission._id}-file-${index}`}
-                              type="button"
-                              onClick={() => downloadSubmissionFile(submission._id, index)}
-                              className="cursor-pointer rounded border border-[#2ff5a8] px-2 py-1 text-xs text-[#2ff5a8] hover:bg-[#2ff5a822]"
-                            >
-                              {file.fileName || `File ${index + 1}`}
-                            </button>
-                          ))}
+                {submissions
+                  .filter(
+                    (submission) =>
+                      submission.submissionStatus !== "REJECTED_FOR_REVISION",
+                  )
+                  .map((submission) => (
+                    <div
+                      key={submission._id}
+                      className="rounded-lg border border-white/10 bg-[#1f292580] p-4"
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">
+                            {submission.studentName}
+                          </p>
+                          <p className="text-xs text-[#bcd2c9]">
+                            Submitted:{" "}
+                            {new Date(
+                              submission.createdAt || submission.submittedAt,
+                            ).toLocaleString()}
+                          </p>
                         </div>
-                      </div>
-                    )}
-
-                    {(isProfessor || isAdmin) && (
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          setGradeForm((prev) => ({
-                            ...prev,
-                            submissionId: submission._id,
-                          }));
-                          handleGradeSubmission(e);
-                        }}
-                        className="space-y-2 border-t border-white/10 pt-3"
-                      >
                         <div className="flex gap-2">
-                          <input
-                            className="flex-1 rounded bg-[#1f2925cc] p-2 text-sm hover:cursor-pointer"
-                            type="number"
-                            placeholder="Marks"
-                            value={gradeForm.marks}
-                            onChange={(e) =>
-                              setGradeForm((prev) => ({
-                                ...prev,
-                                marks: e.target.value,
-                              }))
-                            }
-                          />
-                          <select
-                            className="rounded bg-[#1f2925cc] p-2 text-sm hover:cursor-pointer"
-                            value={gradeForm.status}
-                            onChange={(e) =>
-                              setGradeForm((prev) => ({
-                                ...prev,
-                                status: e.target.value,
-                              }))
-                            }
+                          <span
+                            className={`rounded px-2 py-1 text-xs font-semibold ${
+                              submission.submissionStatus === "TURNED_IN"
+                                ? "bg-purple-500/20 text-purple-300"
+                                : submission.submissionStatus === "VERIFIED"
+                                  ? "bg-emerald-500/20 text-emerald-300"
+                                  : submission.submissionStatus ===
+                                      "REJECTED_FOR_REVISION"
+                                    ? "bg-red-500/20 text-red-300"
+                                    : submission.submissionStatus ===
+                                        "UNDER_REVIEW"
+                                      ? "bg-amber-500/20 text-amber-300"
+                                      : "bg-gray-500/20 text-gray-300"
+                            }`}
                           >
-                            <option value="SUBMITTED">Submitted</option>
-                            <option value="RETURNED">Returned</option>
-                            <option value="GRADED">Graded</option>
-                          </select>
+                            {submission.submissionStatus || "DRAFT"}
+                          </span>
+                          {submission.versionNumber && (
+                            <span className="rounded px-2 py-1 text-xs font-semibold bg-blue-500/20 text-blue-300">
+                              v{submission.versionNumber}
+                            </span>
+                          )}
                         </div>
-                        <textarea
-                          className="w-full rounded bg-[#1f2925cc] p-2 text-sm"
-                          placeholder="Feedback"
-                          value={gradeForm.feedback}
-                          onChange={(e) =>
-                            setGradeForm((prev) => ({
-                              ...prev,
-                              feedback: e.target.value,
-                            }))
-                          }
-                        />
-                        <button
-                          type="submit"
-                          onClick={() =>
-                            setGradeForm((prev) => ({
-                              ...prev,
-                              submissionId: submission._id,
-                            }))
-                          }
-                          className="w-full rounded bg-[#2ff5a8] px-3 py-1 text-sm font-semibold text-[#142019] hover:cursor-pointer hover:bg-[#24d993]"
-                        >
-                          Submit Grade
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                ))}
+                      </div>
+
+                      {submission.githubUrl && (
+                        <div className="mb-2">
+                          <p className="text-xs font-semibold text-[#2ff5a8]">
+                            GitHub URL:
+                          </p>
+                          <a
+                            href={submission.githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="cursor-pointer text-xs text-blue-400 underline"
+                          >
+                            {submission.githubUrl}
+                          </a>
+                        </div>
+                      )}
+
+                      {Array.isArray(submission.files) &&
+                        submission.files.length > 0 && (
+                          <div className="mb-3">
+                            <p className="mb-2 text-xs font-semibold text-[#2ff5a8]">
+                              Files:
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {submission.files.map((file, index) => (
+                                <button
+                                  key={`${submission._id}-file-${index}`}
+                                  type="button"
+                                  onClick={() =>
+                                    downloadSubmissionFile(
+                                      submission._id,
+                                      index,
+                                    )
+                                  }
+                                  className="cursor-pointer rounded border border-[#2ff5a8] px-2 py-1 text-xs text-[#2ff5a8] hover:bg-[#2ff5a822]"
+                                >
+                                  {file.fileName || `File ${index + 1}`}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      {(isProfessor || isAdmin) && (
+                        <div className="space-y-3 border-t border-white/10 pt-3">
+                          {/* For TURNED_IN submissions: Accept or Return */}
+                          {submission.submissionStatus === "TURNED_IN" && (
+                            <>
+                              <div className="rounded-lg border-l-4 border-purple-400 bg-purple-500/10 p-3">
+                                <p className="text-sm text-purple-300 font-semibold">
+                                  This project has been turned in and is ready
+                                  for grading.
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReviewModal({
+                                      isOpen: true,
+                                      submissionId: submission._id,
+                                      action: "accept",
+                                      note: "",
+                                    });
+                                  }}
+                                  className="flex-1 rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 cursor-pointer"
+                                >
+                                  ✅ Accept & Verify
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReviewModal({
+                                      isOpen: true,
+                                      submissionId: submission._id,
+                                      action: "return",
+                                      note: "",
+                                    });
+                                  }}
+                                  className="flex-1 rounded bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700 cursor-pointer"
+                                >
+                                  🔄 Return for Revision
+                                </button>
+                              </div>
+                            </>
+                          )}
+
+                          {/* For UNDER_REVIEW submissions: Also allow Accept or Return */}
+                          {submission.submissionStatus === "UNDER_REVIEW" && (
+                            <>
+                              <div className="rounded-lg border-l-4 border-amber-400 bg-amber-500/10 p-3">
+                                <p className="text-sm text-amber-300 font-semibold">
+                                  This project is under review. Complete your
+                                  evaluation:
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReviewModal({
+                                      isOpen: true,
+                                      submissionId: submission._id,
+                                      action: "accept",
+                                      note: "",
+                                    });
+                                  }}
+                                  className="flex-1 rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 cursor-pointer"
+                                >
+                                  ✅ Accept & Verify
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReviewModal({
+                                      isOpen: true,
+                                      submissionId: submission._id,
+                                      action: "return",
+                                      note: "",
+                                    });
+                                  }}
+                                  className="flex-1 rounded bg-orange-600 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-700 cursor-pointer"
+                                >
+                                  🔄 Return for Revision
+                                </button>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Grading workflow info for verified submissions */}
+                          {submission.submissionStatus === "VERIFIED" && (
+                            <div className="rounded-lg border-l-4 border-emerald-400 bg-emerald-500/10 p-3">
+                              <p className="text-sm text-emerald-300">
+                                ✅ This project has been verified and accepted.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
             </section>
           )}
         </section>
+      )}
+
+      {/* Review Modal Form */}
+      {reviewModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1f2925] rounded-lg p-6 max-w-md w-full border border-[#2ff5a8]/30">
+            <h2 className="text-xl font-bold text-[#e8f2ed] mb-4">
+              {reviewModal.action === "accept"
+                ? "✅ Accept & Verify Submission"
+                : "🔄 Return for Revision"}
+            </h2>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (reviewModal.action === "accept") {
+                  handleAcceptSubmission(
+                    reviewModal.submissionId,
+                    reviewModal.note,
+                  );
+                } else if (reviewModal.action === "return") {
+                  if (reviewModal.note.length < 10) {
+                    alert("Feedback must be at least 10 characters");
+                    return;
+                  }
+                  handleReturnForRevision(
+                    reviewModal.submissionId,
+                    reviewModal.note,
+                  );
+                }
+                setReviewModal({
+                  isOpen: false,
+                  submissionId: "",
+                  action: null,
+                  note: "",
+                });
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-[#8b9d95] mb-2">
+                  {reviewModal.action === "accept"
+                    ? "Acceptance Note (optional)"
+                    : "Feedback for Revision (required - minimum 10 characters)"}
+                </label>
+                <textarea
+                  required={reviewModal.action === "return"}
+                  minLength={reviewModal.action === "return" ? 10 : 0}
+                  value={reviewModal.note}
+                  onChange={(e) =>
+                    setReviewModal((prev) => ({
+                      ...prev,
+                      note: e.target.value,
+                    }))
+                  }
+                  placeholder={
+                    reviewModal.action === "accept"
+                      ? "Enter optional note..."
+                      : "Enter feedback for improvements..."
+                  }
+                  className="w-full rounded bg-[#0f1419] text-[#e8f2ed] p-3 text-sm border border-[#2ff5a8]/30 focus:border-[#2ff5a8] focus:outline-none"
+                  rows={5}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setReviewModal({
+                      isOpen: false,
+                      submissionId: "",
+                      action: null,
+                      note: "",
+                    })
+                  }
+                  className="flex-1 rounded border border-[#8b9d95] px-4 py-2 text-sm font-semibold text-[#8b9d95] hover:bg-[#0f1419] transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`flex-1 rounded px-4 py-2 text-sm font-semibold text-white transition ${
+                    reviewModal.action === "accept"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-orange-600 hover:bg-orange-700"
+                  }`}
+                >
+                  {reviewModal.action === "accept" ? "Accept" : "Return"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

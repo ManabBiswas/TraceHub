@@ -402,7 +402,7 @@ export const api = {
 
     getSubmissions: async (classroomId, postId) => {
       const response = await fetch(
-        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions`,
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions`,
         {
           method: "GET",
           headers: getHeaders(true),
@@ -413,7 +413,7 @@ export const api = {
 
     getMySubmission: async (classroomId, postId) => {
       const response = await fetch(
-        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions/me`,
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions/me`,
         {
           method: "GET",
           headers: getHeaders(true),
@@ -424,7 +424,7 @@ export const api = {
 
     getSubmissionHistory: async (classroomId, postId, submissionId) => {
       const response = await fetch(
-        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions/${submissionId}/history`,
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions/${submissionId}/history`,
         {
           method: "GET",
           headers: getHeaders(true),
@@ -506,13 +506,80 @@ export const api = {
 
     submitProject: async (classroomId, postId, formData) => {
       const response = await fetch(
-        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/submissions`,
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions/draft`,
         {
           method: "POST",
           headers: {
             ...getAuthHeader(),
           },
           body: formData,
+        },
+      );
+      return response.json();
+    },
+
+    finalizeProject: async (classroomId, postId) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions/final`,
+        {
+          method: "POST",
+          headers: getHeaders(true),
+        },
+      );
+      return response.json();
+    },
+
+    turnInProject: async (classroomId, postId) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions/turn-in`,
+        {
+          method: "POST",
+          headers: getHeaders(true),
+        },
+      );
+      return response.json();
+    },
+
+    acceptProjectSubmission: async (
+      classroomId,
+      postId,
+      submissionId,
+      payload,
+    ) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions/${submissionId}/verify`,
+        {
+          method: "POST",
+          headers: getHeaders(true),
+          body: JSON.stringify(payload),
+        },
+      );
+      return response.json();
+    },
+
+    returnProjectForRevision: async (
+      classroomId,
+      postId,
+      submissionId,
+      payload,
+    ) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/posts/${postId}/project-submissions/${submissionId}/reject-for-revision`,
+        {
+          method: "POST",
+          headers: getHeaders(true),
+          body: JSON.stringify(payload),
+        },
+      );
+      return response.json();
+    },
+
+    getVerifiedProjects: async (classroomId) => {
+      const response = await fetch(
+        `${API_BASE_URL}/classrooms/${classroomId}/projects/verified`,
+        {
+          method: "GET",
+          headers: getHeaders(true),
         },
       );
       return response.json();

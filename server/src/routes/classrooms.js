@@ -17,6 +17,7 @@ import {
   fetchSubmissionHistory,
   downloadSubmissionFile,
   updateSubmission,
+  getVerifiedProjects,
 } from "../controllers/classrooms.controller.js";
 
 const router = express.Router();
@@ -97,6 +98,13 @@ router.patch(
   authMiddleware,
   roleGuard("PROFESSOR", "HOD"),
   updateSubmission,
+);
+
+// ── Verified Projects Gallery ─────────────────────────────────────────────
+router.get(
+  "/:classroomId/projects/verified",
+  authMiddleware,
+  getVerifiedProjects,
 );
 
 export default router;
