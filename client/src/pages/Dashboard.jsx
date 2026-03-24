@@ -1,147 +1,161 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
   BookOpen,
   Upload,
   Clock,
-  Sparkles,
   School,
-  CreditCard,
   Bookmark,
+  ChevronRight,
+  LayoutGrid,
 } from "lucide-react";
+import ProfessorDashboard from "../components/ProfessorDashboard";
+import StudentDashboard from "../components/StudentDashboard";
 
 const Dashboard = () => {
   const { user, isProfessor, isAdmin, renewSubscription } = useAuth();
-
-  const cardClass =
-    "flex flex-col rounded-2xl border border-[#2ff5a838] bg-white/10 p-8 text-[#e8f2ed] shadow-2xl backdrop-blur transition hover:-translate-y-1 hover:border-[#2ff5a866]";
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleRenew = async () => {
     await renewSubscription();
     window.location.reload();
   };
 
+  const navigationItems = [
+    { label: "Resources", icon: BookOpen, path: "/resources", show: true },
+    {
+      label: "Classrooms",
+      icon: School,
+      path: "/classrooms",
+      show: true,
+    },
+    {
+      label: "Projects",
+      icon: Bookmark,
+      path: "/projects",
+      show: true,
+    },
+    {
+      label: "Upload",
+      icon: Upload,
+      path: "/upload",
+      show: isProfessor || isAdmin,
+    },
+    {
+      label: "Pending Reviews",
+      icon: Clock,
+      path: "/resources?filter=pending",
+      show: isProfessor || isAdmin,
+    },
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-360 rounded-2xl bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] p-4 md:p-8">
-      <div className="mb-10 flex flex-wrap items-start justify-between gap-4 border-b-2 border-[#3f5148] pb-8">
-        <div>
-          <h1 className="mb-3 text-4xl font-bold text-slate-100 md:text-5xl">
-            Welcome, {user?.name}!
-          </h1>
-          <p className="inline-block rounded-2xl bg-[#2ff5a8] px-6 py-2 text-xs font-semibold uppercase tracking-wider text-[#142019]">
-            {user?.role}
-          </p>
-          {user?.role === "PROFESSOR" && (
-            <p className="mt-3 text-sm text-[#bcd2c9]">
-              Subscription: {user?.teacherSubscription?.status || "NONE"}
-              {user?.teacherSubscription?.nextBillingDate
-                ? ` | Next Billing: ${new Date(user.teacherSubscription.nextBillingDate).toLocaleDateString()}`
-                : ""}
-            </p>
+    <div className="flex min-h-screen">
+      {/* Sidebar Navigation */}
+      <aside
+        className={`border-r border-[#2ff5a833] bg-gradient-to-b from-[#142019] to-[#0f1812] transition-all duration-300 ${
+          collapsed ? "w-20" : "w-64"
+        }`}
+      >
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between border-b border-[#2ff5a833] p-4">
+          {!collapsed && (
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-[#2ff5a8] p-2">
+                <LayoutGrid size={20} className="text-[#142019]" />
+              </div>
+              <span className="font-semibold text-[#2ff5a8]">TraceHub</span>
+            </div>
+          )}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="rounded-lg p-1 hover:bg-[#2ff5a833]"
+          >
+            <ChevronRight
+              size={18}
+              className={`text-[#2ff5a8] transition-transform ${
+                collapsed ? "" : "rotate-180"
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="space-y-2 p-4">
+          {navigationItems
+            .filter((item) => item.show)
+            .map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#bcd2c9] transition hover:bg-[#2ff5a833] hover:text-[#2ff5a8]"
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon size={20} className="flex-shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+            {/* Sidebar Footer - Subscription */}
+            {user?.role === "PROFESSOR" && !collapsed && (
+              <div className="relative bottom-0 left-0 right-0 border-t border-[#2ff5a833] bg-[#0f1812] p-4">
+                <div className="mb-3 rounded-lg bg-[#2ff5a833] p-3">
+                  <p className="text-xs text-[#bcd2c9]">Subscription Status</p>
+                  <p className="mt-1 font-semibold text-[#2ff5a8]">
+                    {user?.teacherSubscription?.status || "NONE"}
+                  </p>
+                </div>
+                {user?.teacherSubscription?.status !== "ACTIVE" && (
+                  <button
+                    onClick={handleRenew}
+                    className="w-full rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-3 py-2 text-xs font-semibold text-[#142019] transition hover:bg-[#2dd99e]"
+                  >
+                    Renew Now
+                  </button>
+                )}
+              </div>
+            )}
+        </nav>
+
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-auto bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)]">
+        {/* Top Bar */}
+        <header className="sticky top-0 z-10 border-b border-[#2ff5a833] bg-[#142019]/80 backdrop-blur-xl">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-100">
+                  Welcome, {user?.name}!
+                </h1>
+                <p className="mt-1 text-sm text-[#bcd2c9]">
+                  {user?.role === "PROFESSOR"
+                    ? "Manage your classes and monitor student progress"
+                    : user?.role === "HOD"
+                      ? "Department head dashboard"
+                      : "Track your assignments and progress"}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#2ff5a8] px-6 py-2 text-xs font-semibold uppercase tracking-wider text-[#142019]">
+                {user?.role}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Dashboard Content */}
+        <div className="px-6 py-8">
+          {isProfessor || user?.role === "HOD" ? (
+            <ProfessorDashboard />
+          ) : (
+            <StudentDashboard />
           )}
         </div>
-        <div className="flex gap-2">
-          {user?.role === "PROFESSOR" &&
-            user?.teacherSubscription?.status !== "ACTIVE" && (
-              <button
-                onClick={handleRenew}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#2ff5a8] bg-[#2ff5a8] px-5 py-3 text-sm font-semibold text-[#142019] transition btn-primary-animated"
-              >
-                <CreditCard size={16} />
-                Renew Subscription
-              </button>
-            )}
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {/* All Users */}
-        <Link to="/resources" className={cardClass}>
-          <BookOpen
-            size={80}
-            className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-          />
-          <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-            All Resources
-          </h3>
-          <p className="text-lg leading-8 text-[#bfd0c8]">
-            Browse all published resources and documents
-          </p>
-        </Link>
-
-        <Link to="/classrooms" className={cardClass}>
-          <School
-            size={80}
-            className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-          />
-          <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-            Classrooms
-          </h3>
-          <p className="text-lg leading-8 text-[#bfd0c8]">
-            Create, join, post assignments, submit work, and grade
-          </p>
-        </Link>
-
-        <Link to="/projects" className={cardClass}>
-          <Bookmark
-            size={80}
-            className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-          />
-          <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-            Approved Projects
-          </h3>
-          <p className="text-lg leading-8 text-[#bfd0c8]">
-            View verified student projects from your classrooms
-          </p>
-        </Link>
-
-        {/* Upload for Professors */}
-        {(isProfessor || isAdmin) && (
-          <Link to="/upload" className={`${cardClass} border-[#2ff5a866]`}>
-            <Upload
-              size={80}
-              className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-            />
-            <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-              Upload Document
-            </h3>
-            <p className="text-lg leading-8 text-[#bfd0c8]">
-              Upload and publish your course materials
-            </p>
-          </Link>
-        )}
-
-        {/* Pending Approvals */}
-        {(isProfessor || isAdmin) && (
-          <Link to="/resources?filter=pending" className={`${cardClass} border-[#2ff5a866]`}>
-            <Clock
-              size={80}
-              className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-            />
-            <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-              Pending Approvals
-            </h3>
-            <p className="text-lg leading-8 text-[#bfd0c8]">
-              Review and approve student submissions
-            </p>
-          </Link>
-        )}
-
-        {/* My Resources */}
-        <Link to="/resources" className={cardClass}>
-          <Sparkles
-            size={80}
-            className="mx-auto mb-6 rounded-3xl bg-[#2ff5a833] p-5 text-[#8cf0c8]"
-          />
-          <h3 className="mb-3 text-[2rem] font-semibold leading-tight text-[#e8f2ed]">
-            My Resources
-          </h3>
-          <p className="text-lg leading-8 text-[#bfd0c8]">
-            View your uploaded documents
-          </p>
-        </Link>
-      </div>
+      </main>
     </div>
   );
 };
