@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -9,13 +9,36 @@ import {
   Bookmark,
   ChevronRight,
   LayoutGrid,
+  Menu,
+  X,
 } from "lucide-react";
 import ProfessorDashboard from "../components/ProfessorDashboard";
 import StudentDashboard from "../components/StudentDashboard";
+import BackToTop from "../components/BackToTop";
 
 const Dashboard = () => {
   const { user, isProfessor, isAdmin, renewSubscription } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setCollapsed(false);
+      else setMobileOpen(false);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Close mobile menu when navigating
+  const handleNavClick = () => {
+    if (isMobile) setMobileOpen(false);
+  };
 
   const handleRenew = async () => {
     await renewSubscription();
@@ -123,7 +146,7 @@ const Dashboard = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)]">
+      <main id="main-content" className="flex-1 overflow-auto bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)]">
         {/* Top Bar */}
         <header className="sticky top-0 z-10 border-b border-[#2ff5a833] bg-[#142019]/80 backdrop-blur-xl">
           <div className="px-6 py-4">
@@ -156,6 +179,9 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+
+      {/* Back to Top Button */}
+      <BackToTop targetId="main-content" />
     </div>
   );
 };
