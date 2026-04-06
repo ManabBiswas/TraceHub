@@ -11,7 +11,7 @@ const Navigation = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileActive, setProfileActive] = useState(false);
   const [profileHovered, setProfileHovered] = useState(false);
-  const [logoutHovered, setLogoutHovered] = useState(false);
+  const [_logoutHovered, _setLogoutHovered] = useState(false);
 
   const handleLogout = () => {
     logout();

@@ -434,6 +434,7 @@ const StudentDashboard = () => {
                 </div>
               </div>
             ))
+
           ) : (
             <p className="text-center text-[#bcd2c9]">No submissions yet</p>
           )}

@@ -19,7 +19,7 @@ import BackToTop from "../components/BackToTop";
 const Dashboard = () => {
   const { user, isProfessor, isAdmin, renewSubscription } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [_mobileOpen, _setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // Handle responsive behavior
@@ -28,7 +28,7 @@ const Dashboard = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile) setCollapsed(false);
-      else setMobileOpen(false);
+      else _setMobileOpen(false);
     };
 
     window.addEventListener("resize", handleResize);
@@ -36,8 +36,8 @@ const Dashboard = () => {
   }, []);
 
   // Close mobile menu when navigating
-  const handleNavClick = () => {
-    if (isMobile) setMobileOpen(false);
+  const _handleNavClick = () => {
+    if (isMobile) _setMobileOpen(false);
   };
 
   const handleRenew = async () => {
@@ -77,7 +77,7 @@ const Dashboard = () => {
     <div className="flex min-h-screen">
       {/* Sidebar Navigation */}
       <aside
-        className={`border-r border-[#2ff5a833] bg-gradient-to-b from-[#142019] to-[#0f1812] transition-all duration-300 ${
+        className={`border-r border-[#2ff5a833] bg-linear-to-b from-[#142019] to-[#0f1812] transition-all duration-300 ${
           collapsed ? "w-20" : "w-64"
         }`}
       >
@@ -117,7 +117,7 @@ const Dashboard = () => {
                   className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#bcd2c9] transition hover:bg-[#2ff5a833] hover:text-[#2ff5a8]"
                   title={collapsed ? item.label : undefined}
                 >
-                  <Icon size={20} className="flex-shrink-0" />
+                  <Icon size={20} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               );

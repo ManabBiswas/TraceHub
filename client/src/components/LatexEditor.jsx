@@ -146,25 +146,11 @@ export default function LatexEditor({ onSubmit, initialContent = "" }) {
       };
       document.head.appendChild(script);
     } else {
-      setKatexLoaded(true);
+      // KaTeX already loaded from a previous render
+      const timer = setTimeout(() => setKatexLoaded(true), 0);
+      return () => clearTimeout(timer);
     }
   }, []);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Live preview with KaTeX rendering
-  // ─────────────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!katexLoaded) return;
-
-    try {
-      setRenderError("");
-      const rendered = renderLatexPreview(content);
-      setPreview(rendered);
-    } catch (error) {
-      setRenderError(error.message);
-      setPreview("<p style='color: red;'>Rendering error</p>");
-    }
-  }, [content, katexLoaded]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Render LaTeX to HTML with KaTeX
@@ -227,7 +213,8 @@ export default function LatexEditor({ onSubmit, initialContent = "" }) {
           `<div class="my-2 text-center katex-display">${rendered}</div>`
         );
         return `__DISPLAY_MATH_${displayMathPlaceholders.length - 1}__`;
-      } catch (err) {
+      } catch {
+        // Gracefully handle KaTeX rendering errors
         displayMathPlaceholders.push(
           `<div class="my-2 p-2 bg-red-900/20 text-red-300 rounded text-sm">Math error in: ${expr.substring(0, 30)}</div>`
         );
@@ -250,7 +237,7 @@ export default function LatexEditor({ onSubmit, initialContent = "" }) {
           `<span class="katex-inline px-1">${rendered}</span>`
         );
         return `__INLINE_MATH_${inlineMathPlaceholders.length - 1}__`;
-      } catch (err) {
+      } catch {
         // Just return the original $...$ if it fails
         return match;
       }
@@ -267,6 +254,23 @@ export default function LatexEditor({ onSubmit, initialContent = "" }) {
 
     return html;
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Live preview with KaTeX rendering
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!katexLoaded) return;
+
+    try {
+      const rendered = renderLatexPreview(content);
+      setRenderError("");
+      setPreview(rendered);
+    } catch (error) {
+      setRenderError(error.message);
+      setPreview("<p style='color: red;'>Rendering error</p>");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, katexLoaded]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Handle Tab key in editor (2-space indent)

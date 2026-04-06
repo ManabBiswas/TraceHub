@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowUp } from 'lucide-react';
 
 const BackToTop = ({ targetId = 'main-content' }) => {
   const [isVisible, setIsVisible] = useState(false);
 
-  const toggleVisibility = () => {
+  const toggleVisibility = useCallback(() => {
     const element = document.getElementById(targetId);
     if (element && element.scrollTop > 300) {
       setIsVisible(true);
@@ -13,9 +13,9 @@ const BackToTop = ({ targetId = 'main-content' }) => {
     } else {
       setIsVisible(false);
     }
-  };
+  }, [targetId]);
 
-  const scrollToTop = () => {
+  const scrollToTop = useCallback(() => {
     const element = document.getElementById(targetId);
     if (element) {
       element.scrollTo({
@@ -28,7 +28,7 @@ const BackToTop = ({ targetId = 'main-content' }) => {
         behavior: 'smooth',
       });
     }
-  };
+  }, [targetId]);
 
   useEffect(() => {
     const element = document.getElementById(targetId);
@@ -38,7 +38,7 @@ const BackToTop = ({ targetId = 'main-content' }) => {
     return () => {
       scrollElement.removeEventListener('scroll', toggleVisibility);
     };
-  }, [targetId]);
+  }, [targetId, toggleVisibility]);
 
   return (
     <>

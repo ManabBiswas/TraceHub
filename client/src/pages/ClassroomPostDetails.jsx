@@ -39,7 +39,7 @@ const ClassroomPostDetails = () => {
     files: [],
   });
   const [showLatexEditor, setShowLatexEditor] = useState(false);
-  const [latexContent, setLatexContent] = useState("");
+  const [_latexContent, setLatexContent] = useState("");
   const [latexPreview, setLatexPreview] = useState(null);
   const [showLatexModal, setShowLatexModal] = useState(false);
 

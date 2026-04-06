@@ -8,14 +8,14 @@ const ClassroomProjectDetails = () => {
   const navigate = useNavigate();
   const { classroomId, postId } = useParams();
   const { isStudent, isProfessor, isAdmin } = useAuth();
-  const canEditPost = isProfessor || isAdmin;
+  const _canEditPost = isProfessor || isAdmin;
 
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [mySubmission, setMySubmission] = useState(null);
-  const [submissionHistory, setSubmissionHistory] = useState([]);
+  const [_submissionHistory, setSubmissionHistory] = useState([]);
   const [submissionForm, setSubmissionForm] = useState({
     githubUrl: "",
     files: [],
@@ -40,7 +40,7 @@ const ClassroomProjectDetails = () => {
   );
   const [submissionVersionHistory, setSubmissionVersionHistory] = useState({});
 
-  const formatDateTime = (value) => {
+  const _formatDateTime = (value) => {
     if (!value) return "-";
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return "-";
@@ -304,7 +304,7 @@ const ClassroomProjectDetails = () => {
     document.body.removeChild(a);
   };
 
-  const handleGradeSubmission = async (e) => {
+  const _handleGradeSubmission = async (e) => {
     e.preventDefault();
 
     if (!gradeForm.submissionId || !gradeForm.marks) {

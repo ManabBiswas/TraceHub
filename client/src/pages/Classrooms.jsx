@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Copy, Check } from "lucide-react";
 import api from "../config/Api";
 import { useAuth } from "../context/AuthContext";
 
@@ -15,6 +16,7 @@ const Classrooms = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [copiedCodeId, setCopiedCodeId] = useState("");
 
   const [createClassForm, setCreateClassForm] = useState({
     name: "",
@@ -49,6 +51,12 @@ const Classrooms = () => {
     () => posts.find((post) => post._id === selectedPostId),
     [posts, selectedPostId],
   );
+
+  const handleCopyCode = (code, classroomId) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCodeId(classroomId);
+    setTimeout(() => setCopiedCodeId(""), 2000);
+  };
 
   const isTeacher = isProfessor || isAdmin;
 
@@ -538,7 +546,24 @@ const Classrooms = () => {
                 className={`w-full rounded border p-3 text-left transition btn-secondary-animated ${selectedClassroomId === room._id ? "border-[#2ff5a8] bg-[#2ff5a822]" : "border-white/10 bg-[#1f292580]"}`}
               >
                 <p className="font-semibold">{room.name}</p>
-                <p className="text-xs text-[#bcd2c9]">Code: {room.joinCode}</p>
+                <div className="flex items-center justify-between gap-2 mt-2">
+                  <p className="text-xs text-[#bcd2c9]">Code: <span className="font-mono font-semibold">{room.joinCode}</span></p>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyCode(room.joinCode, room._id);
+                    }}
+                    className="ml-auto shrink-0 p-1.5 rounded hover:bg-[#2ff5a8]/20 transition-colors"
+                    title="Copy code"
+                  >
+                    {copiedCodeId === room._id ? (
+                      <Check size={16} className="text-[#10b981]" />
+                    ) : (
+                      <Copy size={16} className="text-[#2ff5a8]" />
+                    )}
+                  </button>
+                </div>
               </button>
             ))}
           </div>
