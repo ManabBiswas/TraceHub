@@ -12,11 +12,25 @@ const Classrooms = () => {
   const [posts, setPosts] = useState([]);
   const [selectedPostId, setSelectedPostId] = useState("");
   const [submissions, setSubmissions] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState("");
+  const [expandedPostId, setExpandedPostId] = useState("");
+  const [gradeForm, setGradeForm] = useState({
+    submissionId: "",
+    marks: "",
+    feedback: "",
+    status: "RETURNED",
+  });
+
+  const [studentSubmissionForm, setStudentSubmissionForm] = useState({
+    submissionLink: "",
+    submissionFiles: [],
+  });
+
+  const [studentSubmission, setStudentSubmission] = useState(null);
+  const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
 
   const [createClassForm, setCreateClassForm] = useState({
     name: "",
@@ -40,17 +54,173 @@ const Classrooms = () => {
     files: [],
   });
 
-  const [gradeForm, setGradeForm] = useState({
-    submissionId: "",
-    marks: "",
-    feedback: "",
-    status: "RETURNED",
-  });
 
-  const selectedPost = useMemo(
+
+  const _selectedPost = useMemo(
     () => posts.find((post) => post._id === selectedPostId),
     [posts, selectedPostId],
   );
+
+  const handleGradeSubmission = async (e) => {
+    e.preventDefault();
+    if (!selectedClassroomId || !selectedPostId || !gradeForm.submissionId)
+      return;
+
+    setError("");
+    setMessage("");
+
+    const response = await api.classrooms.gradeSubmission(
+      selectedClassroomId,
+      selectedPostId,
+      gradeForm.submissionId,
+      {
+        marks: gradeForm.marks ? Number(gradeForm.marks) : null,
+        feedback: gradeForm.feedback,
+        status: gradeForm.status,
+      },
+    );
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    setMessage(response.message || "Submission graded successfully");
+    setGradeForm({
+      submissionId: "",
+      marks: "",
+      feedback: "",
+      status: "RETURNED",
+    });
+    
+    // Refresh submissions
+    const refreshResponse = await api.classrooms.getSubmissions(
+      selectedClassroomId,
+      selectedPostId,
+    );
+    if (!refreshResponse.error) {
+      setSubmissions(refreshResponse.submissions || []);
+    }
+  };
+
+  const handleDownload = async (submissionId, fileIndex) => {
+    if (!selectedClassroomId || !selectedPostId) return;
+
+    const result = await api.classrooms.downloadSubmissionFile(
+      selectedClassroomId,
+      selectedPostId,
+      submissionId,
+      fileIndex,
+    );
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    const url = URL.createObjectURL(result.blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = result.fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleOpenPostAttachment = async (postId, attachmentIndex) => {
+    if (!selectedClassroomId || !postId) return;
+
+    const result = await api.classrooms.downloadPostAttachment(
+      selectedClassroomId,
+      postId,
+      attachmentIndex,
+    );
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    const url = URL.createObjectURL(result.blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  };
+
+  const handleStudentSubmission = async (e) => {
+    e.preventDefault();
+    if (!selectedClassroomId || !selectedPostId) return;
+
+    const post = posts.find((p) => p._id === selectedPostId);
+    if (!post || (post.type !== "ASSIGNMENT" && post.type !== "PROJECT")) return;
+
+    setIsSubmittingAssignment(true);
+    setError("");
+    setMessage("");
+
+    try {
+      if (studentSubmissionForm.submissionFiles.length > 5) {
+        setError("You can submit up to 5 files");
+        return;
+      }
+
+      const oversizedFile = studentSubmissionForm.submissionFiles.find(
+        (file) => file.size > 5 * 1024 * 1024,
+      );
+      if (oversizedFile) {
+        setError(`File too large: ${oversizedFile.name}. Max size is 5MB each.`);
+        return;
+      }
+
+      const nonPdfFile = studentSubmissionForm.submissionFiles.find(
+        (file) => file.type !== "application/pdf",
+      );
+      if (nonPdfFile) {
+        setError(
+          `Unsupported file type: ${nonPdfFile.name}. Only PDF files are allowed.`,
+        );
+        return;
+      }
+
+      if (!studentSubmissionForm.submissionLink && studentSubmissionForm.submissionFiles.length === 0) {
+        setError("Please provide either a link or upload files");
+        return;
+      }
+
+      const payload = {
+        submissionLink: studentSubmissionForm.submissionLink || null,
+        files: studentSubmissionForm.submissionFiles,
+      };
+
+      const response = await api.classrooms.submitAssignment(
+        selectedClassroomId,
+        selectedPostId,
+        payload,
+      );
+
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      setMessage(response.message || "Assignment submitted successfully");
+      setStudentSubmissionForm({
+        submissionLink: "",
+        submissionFiles: [],
+      });
+
+      // Refresh student submission
+      const refreshResponse = await api.classrooms.getMySubmission(
+        selectedClassroomId,
+        selectedPostId,
+      );
+      if (!refreshResponse.error) {
+        setStudentSubmission(refreshResponse.submission || null);
+      }
+    } finally {
+      setIsSubmittingAssignment(false);
+    }
+  };
 
   const handleCopyCode = (code, classroomId) => {
     navigator.clipboard.writeText(code);
@@ -67,70 +237,7 @@ const Classrooms = () => {
     return now > deadline ? "CLOSED" : "OPEN";
   };
 
-  const loadClassrooms = async () => {
-    setLoading(true);
-    setError("");
 
-    const response = await api.classrooms.getAll();
-    setLoading(false);
-
-    if (response.error) {
-      setError(response.error);
-      return;
-    }
-
-    const nextClassrooms = response.classrooms || [];
-    setClassrooms(nextClassrooms);
-
-    if (nextClassrooms.length > 0 && !selectedClassroomId) {
-      setSelectedClassroomId(nextClassrooms[0]._id);
-    }
-  };
-
-  const loadPosts = async (classroomId) => {
-    if (!classroomId) {
-      setPosts([]);
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    const response = await api.classrooms.getPosts(classroomId);
-    setLoading(false);
-
-    if (response.error) {
-      setError(response.error);
-      return;
-    }
-
-    const nextPosts = response.posts || [];
-    setPosts(nextPosts);
-
-    if (nextPosts.length > 0 && !selectedPostId) {
-      setSelectedPostId(nextPosts[0]._id);
-    }
-  };
-
-  const loadSubmissions = async (classroomId, postId) => {
-    if (!classroomId || !postId || !isTeacher) {
-      setSubmissions([]);
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    const response = await api.classrooms.getSubmissions(classroomId, postId);
-    setLoading(false);
-
-    if (response.error) {
-      setError(response.error);
-      return;
-    }
-
-    setSubmissions(response.submissions || []);
-  };
 
   useEffect(() => {
     let isActive = true;
@@ -226,6 +333,39 @@ const Classrooms = () => {
     };
   }, [selectedClassroomId, selectedPostId, isTeacher]);
 
+  // Fetch student's own submission
+  useEffect(() => {
+    let isActive = true;
+
+    const run = async () => {
+      if (!selectedClassroomId || !selectedPostId || isTeacher) {
+        if (!isActive) return;
+        setStudentSubmission(null);
+        return;
+      }
+
+      const response = await api.classrooms.getMySubmission(
+        selectedClassroomId,
+        selectedPostId,
+      );
+
+      if (!isActive) return;
+
+      if (response.error) {
+        setStudentSubmission(null);
+        return;
+      }
+
+      setStudentSubmission(response.submission || null);
+    };
+
+    void run();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedClassroomId, selectedPostId, isTeacher]);
+
   const handleCreateClassroom = async (e) => {
     e.preventDefault();
     setError("");
@@ -246,7 +386,6 @@ const Classrooms = () => {
       room: "",
       description: "",
     });
-    await loadClassrooms();
   };
 
   const handleJoinClassroom = async (e) => {
@@ -263,7 +402,6 @@ const Classrooms = () => {
 
     setMessage(response.message || "Joined classroom");
     setJoinCode("");
-    await loadClassrooms();
   };
 
   const handleCreatePost = async (e) => {
@@ -338,95 +476,17 @@ const Classrooms = () => {
         allowFile: true,
         files: [],
       });
-      await loadPosts(selectedClassroomId);
     } finally {
       setIsCreatingPost(false);
     }
   };
 
-  const handleGradeSubmission = async (e) => {
-    e.preventDefault();
-    if (!selectedClassroomId || !selectedPostId || !gradeForm.submissionId)
-      return;
 
-    setError("");
-    setMessage("");
-
-    const response = await api.classrooms.gradeSubmission(
-      selectedClassroomId,
-      selectedPostId,
-      gradeForm.submissionId,
-      {
-        marks: gradeForm.marks ? Number(gradeForm.marks) : null,
-        feedback: gradeForm.feedback,
-        status: gradeForm.status,
-      },
-    );
-
-    if (response.error) {
-      setError(response.error);
-      return;
-    }
-
-    setMessage(response.message || "Submission graded");
-    setGradeForm({
-      submissionId: "",
-      marks: "",
-      feedback: "",
-      status: "RETURNED",
-    });
-    await loadSubmissions(selectedClassroomId, selectedPostId);
-  };
-
-  const handleDownload = async (submissionId, fileIndex) => {
-    if (!selectedClassroomId || !selectedPostId) return;
-
-    const result = await api.classrooms.downloadSubmissionFile(
-      selectedClassroomId,
-      selectedPostId,
-      submissionId,
-      fileIndex,
-    );
-
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-
-    const url = URL.createObjectURL(result.blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = result.fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleOpenPostAttachment = async (postId, attachmentIndex) => {
-    if (!selectedClassroomId || !postId) return;
-
-    const result = await api.classrooms.downloadPostAttachment(
-      selectedClassroomId,
-      postId,
-      attachmentIndex,
-    );
-
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-
-    const url = URL.createObjectURL(result.blob);
-    window.open(url, "_blank", "noopener,noreferrer");
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-  };
 
   return (
     <div className="mx-auto w-full max-w-360 rounded-2xl bg-[radial-gradient(640px_360px_at_22%_6%,rgba(47,245,168,0.23),transparent_72%),linear-gradient(145deg,#27332e_0%,#1f2925_100%)] p-4 md:p-8 text-[#e8f2ed]">
       <h1 className="mb-6 text-3xl font-bold">Classrooms</h1>
 
-      {loading && <p className="mb-4 text-[#bcd2c9]">Loading...</p>}
       {message && (
         <p className="mb-4 rounded border border-emerald-500/40 bg-emerald-500/20 p-3 text-sm">
           {message}
@@ -791,31 +851,32 @@ const Classrooms = () => {
 
           <div className="space-y-3">
             {posts.map((post) => (
-              <button
-                key={post._id}
-                onClick={() =>
-                  navigate(
-                    post.type === "PROJECT"
-                      ? `/classrooms/${selectedClassroomId}/projects/${post._id}`
-                      : `/classrooms/${selectedClassroomId}/posts/${post._id}`,
-                  )
-                }
-                className="w-full rounded border border-white/10 bg-[#1f292580] p-3 transition hover:bg-[#2ff5a822] hover:border-[#2ff5a8] cursor-pointer btn-secondary-animated"
-              >
-                <div className="flex items-center justify-between gap-6 mb-2">
-                  <span className="font-semibold text-[#e8f2ed] text-left flex-1">
-                    {post.title}
-                  </span>
-                  <span className="text-base font-bold text-[#bcd2c9] flex-1 text-center">{post.type.toLowerCase()}</span>
-                  <span className={`text-base font-bold flex-1 text-right ${
-                    getPostStatus(post.dueDate) === "CLOSED"
-                      ? "text-red-400"
-                      : "text-white"
-                  }`}>
-                    {getPostStatus(post.dueDate).toLowerCase()}
-                  </span>
-                </div>
-              </button>
+              <div key={post._id} className="space-y-2">
+                <button
+                  onClick={() => {
+                    navigate(
+                      post.type === "PROJECT"
+                        ? `/classrooms/${selectedClassroomId}/projects/${post._id}`
+                        : `/classrooms/${selectedClassroomId}/posts/${post._id}`,
+                    )
+                  }}
+                  className="w-full rounded border border-white/10 bg-[#1f292580] p-3 transition hover:bg-[#2ff5a822] hover:border-[#2ff5a8] cursor-pointer btn-secondary-animated"
+                >
+                  <div className="flex items-center justify-between gap-6 mb-2">
+                    <span className="font-semibold text-[#e8f2ed] text-left flex-1">
+                      {post.title}
+                    </span>
+                    <span className="text-base font-bold text-[#bcd2c9] flex-1 text-center">{post.type.toLowerCase()}</span>
+                    <span className={`text-base font-bold flex-1 text-right ${
+                      getPostStatus(post.dueDate) === "CLOSED"
+                        ? "text-red-400"
+                        : "text-white"
+                    }`}>
+                      {getPostStatus(post.dueDate).toLowerCase()}
+                    </span>
+                  </div>
+                </button>
+              </div>
             ))}
 
             {posts.length === 0 && (

@@ -196,7 +196,7 @@ const SubmissionSchema = new mongoose.Schema(
     // Legacy fields (for backward compatibility with non-project submissions)
     status: {
       type: String,
-      enum: ["DRAFT", "TURNED_IN", "RETURNED"],
+      enum: ["DRAFT", "TURNED_IN", "RETURNED", "PENDING", "GRADED"],
       default: "TURNED_IN",
     },
   },

@@ -1243,6 +1243,22 @@ export const updateSubmission = async (req, res) => {
       return res.status(404).json({ error: "Submission not found" });
     }
 
+    // Get the post to validate marks against assigned points
+    const post = await ClassPost.findById(postId);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    // Validate marks don't exceed post's total points
+    if (typeof marks !== "undefined" && marks !== null) {
+      const maxMarks = post.points || 100;
+      if (Number(marks) > maxMarks) {
+        return res.status(400).json({
+          error: `Marks cannot exceed ${maxMarks} (the assignment's total points)`,
+        });
+      }
+    }
+
     const beforeSnapshot = {
       marks: submission.marks,
       feedback: submission.feedback,

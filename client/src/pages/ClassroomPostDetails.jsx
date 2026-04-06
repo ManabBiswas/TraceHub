@@ -38,6 +38,12 @@ const ClassroomPostDetails = () => {
     text: "",
     files: [],
   });
+  const [gradeForm, setGradeForm] = useState({
+    submissionId: "",
+    marks: "",
+    feedback: "",
+    status: "RETURNED",
+  });
   const [showLatexEditor, setShowLatexEditor] = useState(false);
   const [_latexContent, setLatexContent] = useState("");
   const [latexPreview, setLatexPreview] = useState(null);
@@ -336,6 +342,16 @@ const ClassroomPostDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroomId, postId, isStudent, canEditPost]);
 
+  // Auto-populate gradeForm.submissionId when selectedSubmissionId changes
+  useEffect(() => {
+    if (selectedSubmissionId) {
+      setGradeForm((prev) => ({
+        ...prev,
+        submissionId: selectedSubmissionId,
+      }));
+    }
+  }, [selectedSubmissionId]);
+
   const formatSubmissionDateTime = (dateValue) => {
     if (!dateValue) return { date: "-", time: "-" };
     const parsedDate = new Date(dateValue);
@@ -419,6 +435,51 @@ const ClassroomPostDetails = () => {
       setLatexContent("");
     } catch (err) {
       setError(err.message || "Failed to submit LaTeX document");
+    }
+  };
+
+  const handleGradeSubmission = async (e) => {
+    e.preventDefault();
+    if (!classroomId || !postId || !gradeForm.submissionId) return;
+
+    setError("");
+    setMessage("");
+
+    // Validate marks don't exceed post's total points
+    const maxMarks = post?.points || 100;
+    if (gradeForm.marks && Number(gradeForm.marks) > maxMarks) {
+      setError(`Marks cannot exceed ${maxMarks} (the assignment's total points)`);
+      return;
+    }
+
+    const response = await api.classrooms.gradeSubmission(
+      classroomId,
+      postId,
+      gradeForm.submissionId,
+      {
+        marks: gradeForm.marks ? Number(gradeForm.marks) : null,
+        feedback: gradeForm.feedback,
+        status: gradeForm.status,
+      },
+    );
+
+    if (response.error) {
+      setError(response.error);
+      return;
+    }
+
+    setMessage(response.message || "Submission graded successfully");
+    setGradeForm({
+      submissionId: "",
+      marks: "",
+      feedback: "",
+      status: "RETURNED",
+    });
+
+    // Refresh submissions
+    await loadTeacherSubmissions();
+    if (selectedSubmissionId) {
+      await loadSelectedSubmissionHistory(selectedSubmissionId);
     }
   };
 
@@ -1041,6 +1102,83 @@ const ClassroomPostDetails = () => {
                           </div>
                         </div>
                       )}
+
+                      <form
+                        onSubmit={handleGradeSubmission}
+                        className="mt-4 rounded border border-[#2ff5a838] bg-[#0f1613d9] p-3"
+                      >
+                        <p className="mb-3 text-sm font-semibold text-[#e8f2ed]">
+                          Grade Submission
+                        </p>
+                        <div className="space-y-3">
+                          <div>
+                            <label className="mb-2 block text-xs text-[#9fc0b2]">
+                              Status
+                            </label>
+                            <select
+                              value={gradeForm.status}
+                              onChange={(e) =>
+                                setGradeForm((prev) => ({
+                                  ...prev,
+                                  status: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm text-[#e8f2ed]"
+                            >
+                              <option value="PENDING">Pending</option>
+                              <option value="RETURNED">Returned</option>
+                              <option value="GRADED">Graded</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs text-[#9fc0b2]">
+                              Marks (0-{post?.points || 100})
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={post?.points || 100}
+                              placeholder={`Enter marks out of ${post?.points || 100}`}
+                              value={gradeForm.marks}
+                              onChange={(e) =>
+                                setGradeForm((prev) => ({
+                                  ...prev,
+                                  marks: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
+                            />
+                            {gradeForm.marks && (post?.points || 100) && Number(gradeForm.marks) > (post?.points || 100) && (
+                              <p className="mt-1 text-xs text-red-400">
+                                Marks cannot exceed {post?.points || 100}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs text-[#9fc0b2]">
+                              Feedback (optional)
+                            </label>
+                            <textarea
+                              rows={3}
+                              placeholder="Provide feedback to the student"
+                              value={gradeForm.feedback}
+                              onChange={(e) =>
+                                setGradeForm((prev) => ({
+                                  ...prev,
+                                  feedback: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded border border-white/20 bg-[#1f2925cc] px-3 py-2 text-sm"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            className="w-full rounded bg-[#2ff5a8] px-4 py-2 text-sm font-semibold text-[#142019] btn-primary-animated"
+                          >
+                            Submit Grade
+                          </button>
+                        </div>
+                      </form>
                     </div>
                   )}
                 </>
