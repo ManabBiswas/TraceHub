@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { FileText, Paperclip, MessageCircle, Link as LinkIcon, AlertCircle, Lock, X } from "lucide-react";
 import api from "../config/Api";
 import { useAuth } from "../context/AuthContext";
 import LatexEditor from "../components/LatexEditor";
@@ -764,7 +765,10 @@ const ClassroomPostDetails = () => {
                       : "text-[#8cf0c8] hover:bg-[#2ff5a815]"
                   }`}
                 >
-                  📎 Standard Upload
+                  <span className="flex items-center gap-2">
+                    <Paperclip size={16} />
+                    Standard Upload
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -775,7 +779,10 @@ const ClassroomPostDetails = () => {
                       : "text-[#8cf0c8] hover:bg-[#2ff5a815]"
                   }`}
                 >
-                  ∑ Write in LaTeX
+                  <span className="flex items-center gap-2">
+                    <FileText size={16} />
+                    Write in LaTeX
+                  </span>
                 </button>
               </div>
 
@@ -898,8 +905,8 @@ const ClassroomPostDetails = () => {
                       )}
                       {version.points !== null &&
                         version.points !== undefined && (
-                          <p className="mt-0.5 text-[#8cf0c8]">
-                            📊 {version.points} pts
+                          <p className="mt-0.5 text-[#8cf0c8] flex items-center gap-1.5">
+                            <FileText size={12} /> {version.points} pts
                           </p>
                         )}
                       {version.attachments &&
@@ -915,13 +922,14 @@ const ClassroomPostDetails = () => {
                                   }
                                 }}
                                 disabled={!attachment.url}
-                                className={`block text-xs ${
+                                className={`flex items-center gap-1.5 text-xs ${
                                   attachment.url
                                     ? "text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
                                     : "text-[#8cf0c8]"
                                 }`}
                               >
-                                📎 {attachment.title || attachment.fileName}
+                                <Paperclip size={12} />
+                                {attachment.title || attachment.fileName}
                               </button>
                             ))}
                           </div>
@@ -934,12 +942,20 @@ const ClassroomPostDetails = () => {
                           <button
                             type="button"
                             onClick={() => verifyVersionIntegrity(version)}
-                            className="text-xs text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
+                            className="text-xs flex items-center gap-1.5 text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
                             title="Verify integrity on blockchain"
                           >
-                            {version.algorandTxId.startsWith("DEMO_")
-                              ? "⚠️ Demo"
-                              : "🔐 Verify"}
+                            {version.algorandTxId.startsWith("DEMO_") ? (
+                              <>
+                                <AlertCircle size={12} />
+                                Demo
+                              </>
+                            ) : (
+                              <>
+                                <Lock size={12} />
+                                Verify
+                              </>
+                            )}
                           </button>
                         )}
                       </div>
@@ -1020,8 +1036,14 @@ const ClassroomPostDetails = () => {
                                 <p className="mt-0.5 text-[#bcd2c9]">
                                   {version.status || "-"}
                                   {typeof version.marks === "number"
-                                    ? ` | 📊 ${version.marks}`
+                                    ? ` | `
                                     : ""}
+                                  {typeof version.marks === "number" && (
+                                    <span className="flex items-center gap-1 inline-flex">
+                                      <FileText size={12} />
+                                      {version.marks}
+                                    </span>
+                                  )}
                                 </p>
                                 {version.link && (
                                   <button
@@ -1031,8 +1053,10 @@ const ClassroomPostDetails = () => {
                                     }
                                     className="mt-0.5 block text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
                                   >
-                                    🔗 {version.link.substring(0, 45)}
-                                    {version.link.length > 45 ? "..." : ""}
+                                    <span className="flex items-center gap-1">
+                                      <LinkIcon size={14} />
+                                      {version.link.substring(0, 45)}{version.link.length > 45 ? "..." : ""}
+                                    </span>
                                   </button>
                                 )}
                                 {version.text && (
@@ -1043,7 +1067,10 @@ const ClassroomPostDetails = () => {
                                         onClick={() => openLatexPreview(version.text)}
                                         className="mt-0.5 inline-block rounded bg-[#2ff5a8]/20 hover:bg-[#2ff5a8]/30 border border-[#2ff5a838] px-2 py-1 text-xs font-semibold text-[#8cf0c8] transition"
                                       >
-                                        📝 {version.text.split("\n\n")[0].substring(0, 50)}...
+                                        <span className="flex items-center gap-1">
+                                          <FileText size={14} />
+                                          {version.text.split("\n\n")[0].substring(0, 50)}...
+                                        </span>
                                       </button>
                                     ) : (
                                       <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
@@ -1065,17 +1092,18 @@ const ClassroomPostDetails = () => {
                                             idx,
                                           )
                                         }
-                                        className="block text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                                        className="flex items-center gap-1.5 text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
                                       >
-                                        📎 {file.fileName}
+                                        <Paperclip size={12} />
+                                        {file.fileName}
                                       </button>
                                     ))}
                                   </div>
                                 )}
                                 {version.feedback && (
-                                  <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
-                                    💬 {version.feedback.substring(0, 40)}
-                                    {version.feedback.length > 40 ? "..." : ""}
+                                  <p className="mt-0.5 line-clamp-1 text-[#bcd2c9] flex items-center gap-1">
+                                    <MessageCircle size={14} />
+                                    {version.feedback.substring(0, 40)}{version.feedback.length > 40 ? "..." : ""}
                                   </p>
                                 )}
                                 <div className="mt-1 flex items-center justify-between gap-1">
@@ -1092,8 +1120,8 @@ const ClassroomPostDetails = () => {
                                       title="Verify integrity on blockchain"
                                     >
                                       {version.algorandTxId.startsWith("DEMO_")
-                                        ? "⚠️ Demo"
-                                        : "🔐 Verify"}
+                                        ? <span className="flex items-center gap-1"><AlertCircle size={14} /> Demo</span>
+                                        : <span className="flex items-center gap-1"><Lock size={14} /> Verify</span>}
                                     </button>
                                   )}
                                 </div>
@@ -1227,13 +1255,28 @@ const ClassroomPostDetails = () => {
                             <p className="mt-0.5 text-[#bcd2c9]">
                               {version.status || "-"}
                               {typeof version.marks === "number"
-                                ? ` | 📊 ${version.marks}`
+                                ? ` | `
                                 : ""}
+                              {typeof version.marks === "number" && (
+                                <span className="flex items-center gap-1 inline-flex">
+                                  <FileText size={12} />
+                                  {version.marks}
+                                </span>
+                              )}
                             </p>
                             {version.contentType && (
-                              <p className="mt-0.5 text-[#8cf0c8]">
-                                {version.contentType === "LINK" ? "🔗" : "📝"}{" "}
-                                {version.contentType}
+                              <p className="mt-0.5 text-[#8cf0c8] flex items-center gap-1.5">
+                                {version.contentType === "LINK" ? (
+                                  <>
+                                    <LinkIcon size={14} />
+                                    {version.contentType}
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText size={14} />
+                                    {version.contentType}
+                                  </>
+                                )}
                               </p>
                             )}
                             {version.link && (
@@ -1248,9 +1291,10 @@ const ClassroomPostDetails = () => {
                                   <button
                                     type="button"
                                     onClick={() => openLatexPreview(version.text)}
-                                    className="mt-0.5 inline-block rounded bg-[#2ff5a8]/20 hover:bg-[#2ff5a8]/30 border border-[#2ff5a838] px-2 py-1 text-xs font-semibold text-[#8cf0c8] transition"
+                                    className="mt-0.5 inline-flex items-center gap-1.5 rounded bg-[#2ff5a8]/20 hover:bg-[#2ff5a8]/30 border border-[#2ff5a838] px-2 py-1 text-xs font-semibold text-[#8cf0c8] transition"
                                   >
-                                    📝 {version.text.split("\n\n")[0].substring(0, 50)}...
+                                    <FileText size={14} />
+                                    {version.text.split("\n\n")[0].substring(0, 50)}...
                                   </button>
                                 ) : (
                                   <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
@@ -1272,17 +1316,18 @@ const ClassroomPostDetails = () => {
                                         idx,
                                       )
                                     }
-                                    className="block text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
+                                    className="flex items-center gap-1.5 text-xs text-[#a8e6c1] hover:text-[#2ff5a8] hover:underline cursor-pointer"
                                   >
-                                    📎 {file.fileName}
+                                    <Paperclip size={12} />
+                                    {file.fileName}
                                   </button>
                                 ))}
                               </div>
                             )}
                             {version.feedback && (
-                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9]">
-                                💬 {version.feedback.substring(0, 40)}
-                                {version.feedback.length > 40 ? "..." : ""}
+                              <p className="mt-0.5 line-clamp-1 text-[#bcd2c9] flex items-center gap-1.5">
+                                <MessageCircle size={14} />
+                                {version.feedback.substring(0, 40)}{version.feedback.length > 40 ? "..." : ""}
                               </p>
                             )}
                             <div className="mt-1 flex items-center justify-between gap-1">
@@ -1296,12 +1341,20 @@ const ClassroomPostDetails = () => {
                                     onClick={() =>
                                       verifyVersionIntegrity(version)
                                     }
-                                    className="text-xs text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
+                                    className="text-xs flex items-center gap-1.5 text-[#8cf0c8] hover:text-[#2ff5a8] cursor-pointer"
                                     title="Verify integrity on blockchain"
                                   >
-                                    {version.algorandTxId.startsWith("DEMO_")
-                                      ? "⚠️ Demo"
-                                      : "🔐 Verify"}
+                                    {version.algorandTxId.startsWith("DEMO_") ? (
+                                      <>
+                                        <AlertCircle size={12} />
+                                        Demo
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Lock size={12} />
+                                        Verify
+                                      </>
+                                    )}
                                   </button>
                                 )}
                               </div>
@@ -1332,9 +1385,9 @@ const ClassroomPostDetails = () => {
                   <button
                     type="button"
                     onClick={() => setVerificationResult(null)}
-                    className="text-[#bcd2c9] hover:text-[#e8f2ed]"
+                    className="rounded hover:bg-white/10 p-1 text-[#bcd2c9] hover:text-[#e8f2ed] transition"
                   >
-                    ✕
+                    <X size={20} />
                   </button>
                 </div>
                 <div className="mb-4 rounded border border-[#3f5148] bg-[#0f160f] p-3">
@@ -1394,15 +1447,16 @@ const ClassroomPostDetails = () => {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 overflow-y-auto">
               <div className="w-full max-w-4xl rounded-lg border border-[#2ff5a8] bg-[#1f2925] shadow-2xl my-8">
                 <div className="flex items-center justify-between border-b border-[#2ff5a8]/20 bg-[#0f1613d9] px-6 py-4">
-                  <h3 className="text-lg font-semibold text-[#e8f2ed]">
-                    📝 LaTeX Document Preview
+                  <h3 className="text-lg font-semibold text-[#e8f2ed] flex items-center gap-2">
+                    <FileText size={20} />
+                    LaTeX Document Preview
                   </h3>
                   <button
                     type="button"
                     onClick={() => setShowLatexModal(false)}
                     className="rounded hover:bg-white/10 p-1 text-[#bcd2c9] hover:text-[#e8f2ed] transition"
                   >
-                    ✕
+                    <X size={20} />
                   </button>
                 </div>
 

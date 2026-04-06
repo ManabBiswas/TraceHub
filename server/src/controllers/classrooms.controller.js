@@ -4,6 +4,7 @@ import ClassPost from "../models/ClassPost.js";
 import Submission from "../models/Submission.js";
 import { mintVersionProof } from "../services/algorand.service.js";
 import { uploadToDuality } from "../services/storage.service.js";
+import { processFilesForStorage } from "../utils/fileStorage.js";
 
 const generateJoinCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -911,12 +912,7 @@ export const submitAssignment = async (req, res) => {
         .json({ error: "File submissions are disabled for this assignment" });
     }
 
-    const storedFiles = files.map((file) => ({
-      fileName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-      data: file.buffer,
-    }));
+    const storedFiles = await processFilesForStorage(files, "tracehub/submissions");
 
     let contentType = "TEXT";
     if (hasLink && hasFiles) {

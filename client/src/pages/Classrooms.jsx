@@ -11,12 +11,12 @@ const Classrooms = () => {
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
   const [posts, setPosts] = useState([]);
   const [selectedPostId, setSelectedPostId] = useState("");
-  const [submissions, setSubmissions] = useState([]);
+  const [_submissions, setSubmissions] = useState([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState("");
-  const [expandedPostId, setExpandedPostId] = useState("");
+  const [_expandedPostId, _setExpandedPostId] = useState("");
   const [gradeForm, setGradeForm] = useState({
     submissionId: "",
     marks: "",
@@ -29,8 +29,8 @@ const Classrooms = () => {
     submissionFiles: [],
   });
 
-  const [studentSubmission, setStudentSubmission] = useState(null);
-  const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
+  const [_studentSubmission, setStudentSubmission] = useState(null);
+  const [_isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
 
   const [createClassForm, setCreateClassForm] = useState({
     name: "",
@@ -61,7 +61,7 @@ const Classrooms = () => {
     [posts, selectedPostId],
   );
 
-  const handleGradeSubmission = async (e) => {
+  const _handleGradeSubmission = async (e) => {
     e.preventDefault();
     if (!selectedClassroomId || !selectedPostId || !gradeForm.submissionId)
       return;
@@ -103,7 +103,7 @@ const Classrooms = () => {
     }
   };
 
-  const handleDownload = async (submissionId, fileIndex) => {
+  const _handleDownload = async (submissionId, fileIndex) => {
     if (!selectedClassroomId || !selectedPostId) return;
 
     const result = await api.classrooms.downloadSubmissionFile(
@@ -128,7 +128,7 @@ const Classrooms = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleOpenPostAttachment = async (postId, attachmentIndex) => {
+  const _handleOpenPostAttachment = async (postId, attachmentIndex) => {
     if (!selectedClassroomId || !postId) return;
 
     const result = await api.classrooms.downloadPostAttachment(
@@ -147,7 +147,7 @@ const Classrooms = () => {
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   };
 
-  const handleStudentSubmission = async (e) => {
+  const _handleStudentSubmission = async (e) => {
     e.preventDefault();
     if (!selectedClassroomId || !selectedPostId) return;
 
