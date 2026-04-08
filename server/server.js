@@ -23,7 +23,7 @@ if (missingVars.length > 0) {
 
 console.log('✅ All environment variables validated');
 
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, () => {
     console.log(`\n🚀 the Server running on port ${port}`);
     connectDB().catch(err => {
         console.error('Failed to connect to database:', err);
