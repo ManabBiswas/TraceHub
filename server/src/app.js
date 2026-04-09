@@ -19,17 +19,34 @@ const app = express();
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
   "http://localhost:5173",
-  "http://localhost:3000",
-  "http://127.0.0.1:5173",
+  process.env.FRONTEND_URL
 ].filter(Boolean);
+
+// Handle preflight requests explicitly
+app.options("*", cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, {
+        origin: true,
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        exposedHeaders: ["Set-Cookie"],
+        maxAge: 86400
+      });
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
+}));
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
