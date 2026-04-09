@@ -23,24 +23,6 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
-// Handle preflight requests explicitly
-app.options("*", cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, {
-        origin: true,
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-        exposedHeaders: ["Set-Cookie"],
-        maxAge: 86400
-      });
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  }
-}));
-
 app.use(
   cors({
     origin: (origin, callback) => {
