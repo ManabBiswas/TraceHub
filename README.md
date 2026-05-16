@@ -4,6 +4,7 @@
 > A decentralized, AI-powered academic archive that solves two real problems in modern universities: fragile storage and unverifiable student work.
 
 ---
+Project maintained by Souradeep Roy
 
 ## The Problem
 
@@ -191,6 +192,7 @@ Upload → SHA-256 hash of metadata → written to Algorand TX note field
 GET /api/verify/:txid → fetch TX from Algorand indexer
                       → recompute hash from MongoDB
                       → compare → VALID / TAMPERED / NOT_FOUND
+Project maintained by Souradeep Roy
 ```
 
 Any change to MongoDB after the blockchain record is created produces a hash mismatch, proving tampering. The blockchain record itself is immutable.
